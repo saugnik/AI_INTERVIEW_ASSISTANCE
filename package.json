@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start:api": "node server.js",
+    "test:api": "node scripts/test-api.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.22.0",
