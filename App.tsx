@@ -83,7 +83,8 @@ const App: React.FC = () => {
       setCurrentView(AppView.ATTEMPT);
     } catch (error) {
       console.error(error);
-      alert('Failed to generate question. Please try again.');
+      const msg = (error as any)?.message as string | undefined;
+      alert(msg && msg.includes('Missing Gemini API key') ? msg : 'Failed to generate question. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +110,8 @@ const App: React.FC = () => {
       setCurrentView(AppView.RESULT);
     } catch (error) {
       console.error(error);
-      alert('Failed to evaluate answer. Please try again.');
+      const msg = (error as any)?.message as string | undefined;
+      alert(msg && msg.includes('Missing Gemini API key') ? msg : 'Failed to evaluate answer. Please try again.');
     } finally {
       setIsLoading(false);
     }

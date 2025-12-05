@@ -2,7 +2,34 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { Difficulty, Domain, Evaluation, Question, QuestionType } from '../types';
 
-const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+function getApiKey(): string {
+  try {
+    // Prefer a key set by the UI, then environment-mapped values from Vite
+    return (
+      (typeof localStorage !== 'undefined' && localStorage.getItem('GEMINI_API_KEY')) ||
+      (process.env.GEMINI_API_KEY as string | undefined) ||
+      (process.env.API_KEY as string | undefined) ||
+      ''
+    );
+  } catch (_) {
+    // localStorage might be unavailable in some contexts
+    return (
+      (process.env.GEMINI_API_KEY as string | undefined) ||
+      (process.env.API_KEY as string | undefined) ||
+      ''
+    );
+  }
+}
+
+function getAI() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error(
+      'Missing Gemini API key. Set GEMINI_API_KEY in .env.local and restart, or store it in localStorage under "GEMINI_API_KEY".'
+    );
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 export const generateQuestion = async (
   domain: Domain,
@@ -15,6 +42,7 @@ export const generateQuestion = async (
   For System Design, provide clear requirements.
   `;
 
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
@@ -75,6 +103,7 @@ export const evaluateAttempt = async (
   Provide a score out of 100, detailed feedback, list strengths and improvements, and provide the optimal correct solution (code or text).
   `;
 
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
