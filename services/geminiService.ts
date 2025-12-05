@@ -4,20 +4,23 @@ import { Difficulty, Domain, Evaluation, Question, QuestionType } from '../types
 
 function getApiKey(): string {
   try {
-    // Prefer a key set by the UI, then environment-mapped values from Vite
-    return (
-      (typeof localStorage !== 'undefined' && localStorage.getItem('GEMINI_API_KEY')) ||
-      (process.env.GEMINI_API_KEY as string | undefined) ||
-      (process.env.API_KEY as string | undefined) ||
-      ''
-    );
-  } catch (_) {
-    // localStorage might be unavailable in some contexts
-    return (
-      (process.env.GEMINI_API_KEY as string | undefined) ||
-      (process.env.API_KEY as string | undefined) ||
-      ''
-    );
+    // Prefer an explicit localStorage entry (key: 'GEMINI_API_KEY') for quick local testing
+    const fromLocalStorage =
+      typeof localStorage !== 'undefined' ? localStorage.getItem('GEMINI_API_KEY') : null;
+
+    // Vite exposes client env vars under import.meta.env with the VITE_ prefix.
+    // Cast to any to avoid TypeScript complaints in this mixed runtime file.
+    // Example .env.local entry for client testing: VITE_GEMINI_API_KEY=your_key_here
+    const fromViteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_GEMINI_API_KEY : undefined;
+
+    // Server-side env (Node) may use process.env.GEMINI_API_KEY or process.env.API_KEY
+    const fromProcessEnv =
+      (typeof process !== 'undefined' && (process.env?.GEMINI_API_KEY || process.env?.API_KEY)) ||
+      undefined;
+
+    return fromLocalStorage || fromViteEnv || fromProcessEnv || '';
+  } catch (err) {
+    return (typeof process !== 'undefined' && (process.env?.GEMINI_API_KEY || process.env?.API_KEY)) || '';
   }
 }
 
@@ -25,7 +28,7 @@ function getAI() {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error(
-      'Missing Gemini API key. Set GEMINI_API_KEY in .env.local and restart, or store it in localStorage under "GEMINI_API_KEY".'
+      'Missing Gemini API key. For client-side testing set VITE_GEMINI_API_KEY in .env.local (and restart) or store it in localStorage under "GEMINI_API_KEY". For production, keep the key on the server and proxy requests — do not expose secrets to the browser.'
     );
   }
   return new GoogleGenAI({ apiKey });
