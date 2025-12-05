@@ -4,16 +4,12 @@ import { Difficulty, Domain, Evaluation, Question, QuestionType } from '../types
 
 function getApiKey(): string {
   try {
-    // Prefer an explicit localStorage entry (key: 'GEMINI_API_KEY') for quick local testing
     const fromLocalStorage =
       typeof localStorage !== 'undefined' ? localStorage.getItem('GEMINI_API_KEY') : null;
 
-    // Vite exposes client env vars under import.meta.env with the VITE_ prefix.
-    // Cast to any to avoid TypeScript complaints in this mixed runtime file.
-    // Example .env.local entry for client testing: VITE_GEMINI_API_KEY=your_key_here
+ 
     const fromViteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_GEMINI_API_KEY : undefined;
 
-    // Server-side env (Node) may use process.env.GEMINI_API_KEY or process.env.API_KEY
     const fromProcessEnv =
       (typeof process !== 'undefined' && (process.env?.GEMINI_API_KEY || process.env?.API_KEY)) ||
       undefined;
@@ -46,7 +42,9 @@ export const generateQuestion = async (
   `;
 
   const ai = getAI();
-  const response = await ai.models.generateContent({
+  let response;
+  try {
+    response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
     config: {
@@ -73,7 +71,13 @@ export const generateQuestion = async (
         required: ['title', 'description']
       }
     }
-  });
+    });
+  } catch (err) {
+    // Provide a clearer error message to surface common issues (missing key, CORS, network, auth)
+    const inner = (err as any)?.message || JSON.stringify(err);
+    const hint = typeof window !== 'undefined' ? 'Check browser console / Network for CORS or network errors, and ensure the API key is available to the client (VITE_GEMINI_API_KEY) or use a server proxy.' : 'Check server environment variable GEMINI_API_KEY.';
+    throw new Error(`Gemini generate failed: ${inner}. ${hint}`);
+  }
 
   const data = JSON.parse(response.text || '{}');
   
@@ -107,7 +111,9 @@ export const evaluateAttempt = async (
   `;
 
   const ai = getAI();
-  const response = await ai.models.generateContent({
+  let response;
+  try {
+    response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
     config: {
@@ -125,7 +131,12 @@ export const evaluateAttempt = async (
         required: ['score', 'feedback', 'correctSolution']
       }
     }
-  });
+    });
+  } catch (err) {
+    const inner = (err as any)?.message || JSON.stringify(err);
+    const hint = typeof window !== 'undefined' ? 'Check browser console / Network for CORS or network errors, and ensure the API key is available to the client (VITE_GEMINI_API_KEY) or use a server proxy.' : 'Check server environment variable GEMINI_API_KEY.';
+    throw new Error(`Gemini evaluate failed: ${inner}. ${hint}`);
+  }
 
   const data = JSON.parse(response.text || '{}');
 
