@@ -5,7 +5,7 @@ import { Difficulty, Domain, Evaluation, Question, QuestionType } from '../types
 function getApiKey(): string {
   try {
     const fromLocalStorage =
-      typeof localStorage !== 'undefined' ? localStorage.getItem('GEMINI_API_KEY') : null;
+      typeof localStorage !== 'undefined' ? localStorage.getItem('AIzaSyDi-WRAbuG793vXg8FaYGeBPxj373Jt9eA') : null;
 
  
     const fromViteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_GEMINI_API_KEY : undefined;

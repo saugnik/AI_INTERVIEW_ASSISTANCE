@@ -1,4 +1,3 @@
-import { server } from '../server.js';
 import http from 'http';
 
 function httpGet(url) {
@@ -14,8 +13,11 @@ function httpGet(url) {
 }
 
 (async () => {
+  let server;
   try {
+    // Ensure the main server does not auto-start during import
     process.env.START_SERVER = 'false';
+    ({ server } = await import('../server.js'));
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     const addr = server.address();
     const base = `http://127.0.0.1:${addr.port}`;
@@ -35,6 +37,8 @@ function httpGet(url) {
     console.error('TEST FAILED:', e?.message || e);
     process.exitCode = 1;
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+    }
   }
 })();
