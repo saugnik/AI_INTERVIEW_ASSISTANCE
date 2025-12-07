@@ -15,7 +15,6 @@ function httpGet(url) {
 (async () => {
   let server;
   try {
-    // Ensure the main server does not auto-start during import
     process.env.START_SERVER = 'false';
     ({ server } = await import('../server.js'));
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

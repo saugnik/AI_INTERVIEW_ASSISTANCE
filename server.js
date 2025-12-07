@@ -1,8 +1,16 @@
 import http from 'http';
 import { URL } from 'url';
+import { GoogleGenAI } from '@google/genai';
 
 const PORT = process.env.PORT || 3001;
-const ALLOWED_ORIGIN = 'https://ai-interview-assistance-xi.vercel.app';
+// Allow production origin and localhost during development
+const ALLOWED_ORIGINS = new Set([
+  'https://ai-interview-assistance-xi.vercel.app',
+  'http://localhost:3000',
+]);
+
+// Initialize server-side GenAI client when an API key is available
+const genai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
 const questions = [
   {
@@ -31,7 +39,13 @@ const questions = [
 ];
 
 function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  // Respect Origin header when present
+  // (In dev, `http://localhost:3000` is allowed)
+  // If no Origin or not allowed, omit the header to be restrictive.
+  const origin = res.req && res.req.headers && res.req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -52,6 +66,75 @@ export const server = http.createServer((req, res) => {
   if (pathname === '/api/questions/generate' && (req.method === 'GET' || req.method === 'POST')) {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(questions[0]));
+    return;
+  }
+
+  // Server proxy endpoint: generate a question via Google GenAI using a server-side key
+  if (pathname === '/api/generate' && req.method === 'POST') {
+    if (!genai) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Server missing GEMINI_API_KEY' }));
+      return;
+    }
+
+    // Read request body
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const payload = body ? JSON.parse(body) : {};
+        const { domain = 'DSA', difficulty = 'MEDIUM', type = 'CODING' } = payload;
+
+        const prompt = `Generate a single unique ${difficulty} interview question for ${domain} of type ${type}.\nFor coding questions provide starter code and test cases.`;
+
+        const response = await genai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json'
+          }
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(response.text || '{}');
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: (err && err.message) || String(err) }));
+      }
+    });
+    return;
+  }
+
+  // Server proxy endpoint: evaluate an attempt via GenAI
+  if (pathname === '/api/evaluate' && req.method === 'POST') {
+    if (!genai) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Server missing GEMINI_API_KEY' }));
+      return;
+    }
+
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const payload = body ? JSON.parse(body) : {};
+        const { question = {}, userAnswer = '' } = payload;
+
+        const prompt = `Evaluate the following answer for the interview question: "${question.title || 'Untitled'}".\nQuestion:\n${question.description || ''}\nUser Answer:\n${userAnswer}`;
+
+        const response = await genai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: { responseMimeType: 'application/json' }
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(response.text || '{}');
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: (err && err.message) || String(err) }));
+      }
+    });
     return;
   }
 
