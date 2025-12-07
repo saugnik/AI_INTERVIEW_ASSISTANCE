@@ -29,7 +29,6 @@ export const generateQuestion = async (
 ): Promise<Question> => {
   const contentPrompt = `Generate a single unique ${difficulty} interview question for ${domain} of type ${type}. Ensure the question is challenging and realistic for top-tier tech interviews.`;
 
-  // Browser: call server proxy
   if (typeof window !== 'undefined') {
     const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
     const url = devBase ? `${devBase}/api/generate` : '/api/generate';
@@ -57,7 +56,6 @@ export const generateQuestion = async (
     };
   }
 
-  // Server-side: use GoogleGenAI SDK
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
@@ -104,7 +102,6 @@ export const generateQuestion = async (
       testCases: data.testCases || []
     };
   } catch (err) {
-    // Provide a clearer error message to surface common issues (missing key, CORS, network, auth)
     const inner = (err as any)?.message || JSON.stringify(err);
     const hint = typeof window !== 'undefined'
       ? 'Check browser console / Network for CORS or network errors, and ensure the API key is available to the client (VITE_GEMINI_API_KEY) or use a server proxy.'
@@ -128,7 +125,6 @@ ${userAnswer}
 Provide a score out of 100, detailed feedback, list strengths and improvements, and provide the optimal correct solution (code or text).
 `;
 
-  // Browser: call server proxy
   if (typeof window !== 'undefined') {
     const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
     const url = devBase ? `${devBase}/api/evaluate` : '/api/evaluate';
