@@ -1,17 +1,29 @@
+// server.js
 import http from 'http';
 import { URL } from 'url';
 import { GoogleGenAI } from '@google/genai';
+import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
+
+dotenv.config();
 
 const PORT = process.env.PORT || 3001;
 // Allow production origin and localhost during development
 const ALLOWED_ORIGINS = new Set([
   'https://ai-interview-assistance-xi.vercel.app',
   'http://localhost:3000',
+  'http://localhost:5173',
 ]);
 
 // Initialize server-side GenAI client when an API key is available
-const genai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
+const genai = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  : null;
 
+// Initialize Prisma client
+const prisma = new PrismaClient();
+
+// Fallback hardcoded questions (used when DB is empty)
 const questions = [
   {
     id: 'two-sum-0001',
@@ -38,11 +50,9 @@ const questions = [
   },
 ];
 
-function setCors(res) {
-  // Respect Origin header when present
-  // (In dev, `http://localhost:3000` is allowed)
-  // If no Origin or not allowed, omit the header to be restrictive.
-  const origin = res.req && res.req.headers && res.req.headers.origin;
+// Improved CORS helper — uses req.headers.origin
+function setCors(req, res) {
+  const origin = req.headers && req.headers.origin;
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
@@ -52,8 +62,8 @@ function setCors(res) {
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
-export const server = http.createServer((req, res) => {
-  setCors(res);
+export const server = http.createServer(async (req, res) => {
+  setCors(req, res);
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -61,8 +71,94 @@ export const server = http.createServer((req, res) => {
     return;
   }
 
-  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+  // safe parsing of pathname
+  const fullUrl = `http://${req.headers.host}${req.url}`;
+  const { pathname } = new URL(req.url || '/', fullUrl);
 
+  // --- New: GET /api/questions (list) ---
+  if (pathname === '/api/questions' && req.method === 'GET') {
+    try {
+      // Try DB first
+      const dbQuestions = await prisma.question.findMany({
+        select: {
+          id: true,
+          title: true,
+          prompt: true,
+          examples: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+
+      const payload = dbQuestions && dbQuestions.length ? dbQuestions : questions.map(q => ({
+        id: q.id,
+        title: q.title,
+        prompt: q.prompt,
+        examples: q.examples,
+      }));
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(payload));
+    } catch (err) {
+      console.error('GET /api/questions error:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch questions' }));
+    }
+    return;
+  }
+
+  // --- New: GET /api/questions/:id (single question with tests) ---
+  if (pathname.startsWith('/api/questions/') && req.method === 'GET') {
+    const id = pathname.replace('/api/questions/', '');
+    try {
+      const question = await prisma.question.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          domain: true,
+          difficulty: true,
+          type: true,
+          title: true,
+          prompt: true,
+          constraints: true,
+          examples: true,
+          referenceSolution: true,
+          starterCode: true,
+          createdAt: true,
+        },
+      });
+
+      if (question) {
+        const tests = await prisma.testCase.findMany({
+          where: { questionId: id },
+          orderBy: { orderIndex: 'asc' },
+          select: { id: true, stdin: true, stdout: true, orderIndex: true },
+        });
+        question.tests = tests;
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(question));
+        return;
+      }
+
+      // fallback to static array if DB has no such id
+      const fallback = questions.find((q) => q.id === id);
+      if (fallback) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(fallback));
+        return;
+      }
+
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Question not found' }));
+    } catch (err) {
+      console.error('GET /api/questions/:id error:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch question' }));
+    }
+    return;
+  }
+
+  // Keep your existing /api/questions/generate route (returns the hardcoded question)
   if (pathname === '/api/questions/generate' && (req.method === 'GET' || req.method === 'POST')) {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(questions[0]));
@@ -91,8 +187,8 @@ export const server = http.createServer((req, res) => {
           model: 'gemini-2.5-flash',
           contents: prompt,
           config: {
-            responseMimeType: 'application/json'
-          }
+            responseMimeType: 'application/json',
+          },
         });
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -125,7 +221,7 @@ export const server = http.createServer((req, res) => {
         const response = await genai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: prompt,
-          config: { responseMimeType: 'application/json' }
+          config: { responseMimeType: 'application/json' },
         });
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
