@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  email     String    @unique
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  metadata  Json?     @db.JsonB
+  attempts  Attempt[]
+
+  @@map("users")
+}
+
+model Question {
+  id                String     @id @default(uuid()) @db.Uuid
+  domain            String
+  difficulty        String
+  type              String
+  title             String
+  prompt            String     @db.Text
+  constraints       Json?      @db.JsonB
+  examples          Json?      @db.JsonB
+  referenceSolution String?    @map("reference_solution") @db.Text
+  createdAt         DateTime   @default(now()) @map("created_at")
+  testCases         TestCase[]
+  attempts          Attempt[]
+
+  @@map("questions")
+}
+
+model TestCase {
+  id                  String              @id @default(uuid()) @db.Uuid
+  questionId          String              @map("question_id") @db.Uuid
+  stdin               String              @db.Text
+  stdout              String              @db.Text
+  orderIndex          Int                 @map("order_index")
+  question            Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attemptTestResults  AttemptTestResult[]
+
+  @@index([questionId])
+  @@map("test_cases")
+}
+
+model Attempt {
+  id                 String              @id @default(uuid()) @db.Uuid
+  userId             String              @map("user_id") @db.Uuid
+  questionId         String              @map("question_id") @db.Uuid
+  language           String?
+  submission         String              @db.Text
+  score              Decimal?            @db.Decimal(5, 4)
+  feedback           Json?               @db.JsonB
+  createdAt          DateTime            @default(now()) @map("created_at")
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question           Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attemptTestResults AttemptTestResult[]
+
+  @@index([userId])
+  @@index([questionId])
+  @@index([createdAt])
+  @@map("attempts")
+}
+
+model AttemptTestResult {
+  id              String   @id @default(uuid()) @db.Uuid
+  attemptId       String   @map("attempt_id") @db.Uuid
+  testCaseId      String   @map("test_case_id") @db.Uuid
+  passed          Boolean
+  stdout          String?  @db.Text
+  stderr          String?  @db.Text
+  executionTimeMs Int?     @map("execution_time_ms")
+  attempt         Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  testCase        TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@index([testCaseId])
+  @@map("attempt_test_results")
+}
