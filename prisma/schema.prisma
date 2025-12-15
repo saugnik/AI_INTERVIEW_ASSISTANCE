@@ -7,78 +7,136 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String    @id @default(uuid()) @db.Uuid
-  email     String    @unique
-  name      String
-  createdAt DateTime  @default(now()) @map("created_at")
-  metadata  Json?     @db.JsonB
-  attempts  Attempt[]
+model attempt_test_results {
+  id                String     @id @db.Uuid
+  attempt_id        String     @db.Uuid
+  test_case_id      String     @db.Uuid
+  passed            Boolean
+  stdout            String?
+  stderr            String?
+  execution_time_ms Int?
+  attempts          attempts   @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
+  test_cases        test_cases @relation(fields: [test_case_id], references: [id], onDelete: Cascade)
 
-  @@map("users")
+  @@index([attempt_id])
+  @@index([test_case_id])
 }
 
-model Question {
-  id                String     @id @default(uuid()) @db.Uuid
-  domain            String
-  difficulty        String
-  type              String
-  title             String
-  prompt            String     @db.Text
-  constraints       Json?      @db.JsonB
-  examples          Json?      @db.JsonB
-  referenceSolution String?    @map("reference_solution") @db.Text
-  createdAt         DateTime   @default(now()) @map("created_at")
-  testCases         TestCase[]
-  attempts          Attempt[]
+model attempts {
+  id                   String                 @id @db.Uuid
+  user_id              String                 @db.Uuid
+  question_id          String                 @db.Uuid
+  language             String?
+  submission           String
+  score                Decimal?               @db.Decimal(5, 4)
+  feedback             Json?
+  created_at           DateTime               @default(now())
+  attempt_test_results attempt_test_results[]
+  questions            questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  users                users                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@map("questions")
+  @@index([created_at])
+  @@index([question_id])
+  @@index([user_id])
 }
 
-model TestCase {
-  id                  String              @id @default(uuid()) @db.Uuid
-  questionId          String              @map("question_id") @db.Uuid
-  stdin               String              @db.Text
-  stdout              String              @db.Text
-  orderIndex          Int                 @map("order_index")
-  question            Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  attemptTestResults  AttemptTestResult[]
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model auth_users {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  google_id     String?   @unique
+  email         String    @unique
+  name          String?
+  picture       String?
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  last_login_at DateTime? @default(now()) @db.Timestamp(6)
+  password_hash String?
+  auth_provider String?   @default("google")
+  role          String    @default("user") // "user" or "admin"
 
-  @@index([questionId])
-  @@map("test_cases")
+  @@index([email], map: "idx_auth_users_email")
+  @@index([google_id], map: "idx_auth_users_google_id")
+  @@index([auth_provider], map: "idx_auth_users_provider")
+  @@index([role], map: "idx_auth_users_role")
 }
 
-model Attempt {
-  id                 String              @id @default(uuid()) @db.Uuid
-  userId             String              @map("user_id") @db.Uuid
-  questionId         String              @map("question_id") @db.Uuid
-  language           String?
-  submission         String              @db.Text
-  score              Decimal?            @db.Decimal(5, 4)
-  feedback           Json?               @db.JsonB
-  createdAt          DateTime            @default(now()) @map("created_at")
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  question           Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  attemptTestResults AttemptTestResult[]
+model session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
 
-  @@index([userId])
-  @@index([questionId])
-  @@index([createdAt])
-  @@map("attempts")
+  @@index([expire], map: "IDX_session_expire")
 }
 
-model AttemptTestResult {
-  id              String   @id @default(uuid()) @db.Uuid
-  attemptId       String   @map("attempt_id") @db.Uuid
-  testCaseId      String   @map("test_case_id") @db.Uuid
-  passed          Boolean
-  stdout          String?  @db.Text
-  stderr          String?  @db.Text
-  executionTimeMs Int?     @map("execution_time_ms")
-  attempt         Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  testCase        TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+model questions {
+  id                   String                 @id @db.Uuid
+  domain               String
+  difficulty           String
+  type                 String
+  title                String
+  prompt               String
+  constraints          Json?
+  examples             Json?
+  reference_solution   String?
+  starter_code         String?
+  created_at           DateTime               @default(now())
+  attempts             attempts[]
+  test_cases           test_cases[]
+  question_assignments question_assignments[]
+}
 
-  @@index([attemptId])
-  @@index([testCaseId])
-  @@map("attempt_test_results")
+model test_cases {
+  id                   String                 @id @db.Uuid
+  question_id          String                 @db.Uuid
+  stdin                String
+  stdout               String
+  order_index          Int
+  attempt_test_results attempt_test_results[]
+  questions            questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@index([question_id])
+}
+
+model users {
+  id         String     @id @db.Uuid
+  email      String     @unique
+  name       String
+  created_at DateTime   @default(now())
+  metadata   Json?
+  attempts   attempts[]
+}
+
+model admin_codes {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String    @unique
+  description String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  expires_at  DateTime?
+  used_by     String[]  @default([])
+
+  @@index([code], map: "idx_admin_codes_code")
+  @@index([is_active], map: "idx_admin_codes_active")
+}
+
+model question_assignments {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  question_id    String    @db.Uuid
+  student_email  String
+  assigned_by    String    // Admin email who assigned
+  assigned_at    DateTime  @default(now())
+  due_date       DateTime?
+  completed      Boolean   @default(false)
+  completed_at   DateTime?
+  
+  // Question categorization
+  assignment_type String   @default("practice")  // "practice" or "test"
+  source         String    @default("admin")     // "ai" or "admin"
+  
+  questions      questions @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  
+  @@index([student_email], map: "idx_assignments_student")
+  @@index([question_id], map: "idx_assignments_question")
+  @@index([assignment_type], map: "idx_assignments_type")
+  @@index([source], map: "idx_assignments_source")
+  @@unique([question_id, student_email])
 }

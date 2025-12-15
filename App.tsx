@@ -17,6 +17,9 @@ import { evaluateAttempt, generateQuestion } from './services/geminiService';
 import LoadingIndicator from './components/LoadingIndicator';
 import QuestionConfigurator from './components/PromptForm';
 import EvaluationDisplay from './components/VideoResult';
+import AdminCodeModal from './components/AdminCodeModal';
+import AdminDashboard from './components/AdminDashboard';
+import StudentAssignedQuestions from './components/StudentAssignedQuestions';
 import {
   AwardIcon,
   BookIcon,
@@ -40,12 +43,93 @@ const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // User State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userName, setUserName] = useState('User');
+  const [userEmail, setUserEmail] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'student' | 'admin'>('student');
+
+  // Admin Code Modal State
+  const [showAdminCodeModal, setShowAdminCodeModal] = useState(false);
+
   // App State
   const [isLoading, setIsLoading] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [currentEvaluation, setCurrentEvaluation] = useState<Evaluation | null>(null);
   const [history, setHistory] = useState<Attempt[]>([]);
+
+  // Auth backend URL - configurable via env or default
+  const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
+
+  // Check authentication status on mount and handle OAuth callback
+  useEffect(() => {
+    // First, check for OAuth callback in URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const authenticated = urlParams.get('authenticated');
+    const userParam = urlParams.get('user');
+    const error = urlParams.get('error');
+
+    if (error) {
+      console.error('OAuth error:', error);
+      alert(`Authentication failed: ${error}`);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    if (authenticated === 'true' && userParam) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userParam));
+        console.log('🔐 OAuth callback received:', { role: user.role, needsAdminCode: user.needsAdminCode, email: user.email });
+
+        setUserName(user.name || 'User');
+        setUserEmail(user.email || '');
+        setUserId(user.id || null);
+        setUserRole(user.role || 'student');
+
+        // Store user data in localStorage
+        localStorage.setItem('userData', JSON.stringify(user));
+        localStorage.setItem('userRole', user.role || 'student');
+
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        // If admin role and needs code verification, show modal
+        if (user.needsAdminCode && user.role === 'admin') {
+          console.log('✅ Showing admin code modal for:', user.email);
+          setShowAdminCodeModal(true);
+          setIsAuthenticated(false); // Don't authenticate until code is verified
+        } else {
+          console.log('✅ Direct authentication for student or verified admin');
+          setIsAuthenticated(true);
+          setCurrentView(AppView.DASHBOARD);
+        }
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+      return;
+    }
+
+    // Check localStorage for existing auth
+    const savedUser = localStorage.getItem('userData');
+    const savedRole = localStorage.getItem('userRole');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setUserName(user.name || 'User');
+        setUserEmail(user.email || '');
+        setUserId(user.id || null);
+        setUserRole((savedRole as 'student' | 'admin') || user.role || 'student');
+        setIsAuthenticated(true);
+      } catch (e) {
+        console.error('Failed to parse saved user data:', e);
+        localStorage.removeItem('userData');
+        localStorage.removeItem('userRole');
+      }
+    }
+  }, []);
 
   // Persist Theme
   useEffect(() => {
@@ -106,7 +190,39 @@ const App: React.FC = () => {
         timeSpentSeconds: 0
       };
 
+      // Save to local history
       saveHistory([attempt, ...history]);
+
+      // Save to database if user is authenticated (optional - backend may not have this endpoint)
+      if (isAuthenticated && userId && currentQuestion.id) {
+        try {
+          // Try to save to main backend if available
+          const mainBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+          await fetch(`${mainBackendUrl}/api/attempts`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              questionId: currentQuestion.id,
+              language: 'javascript',
+              submission: userAnswer,
+              score: evaluation.score,
+              feedback: {
+                feedback: evaluation.feedback,
+                strengths: evaluation.strengths,
+                improvements: evaluation.improvements
+              }
+            })
+          });
+          console.log('✅ Attempt saved to database');
+        } catch (dbError) {
+          console.error('Failed to save to database:', dbError);
+          // Continue anyway - local history is saved
+        }
+      }
+
       setCurrentView(AppView.RESULT);
     } catch (error) {
       console.error(error);
@@ -181,8 +297,8 @@ const App: React.FC = () => {
                 setIsSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium ${currentView === item.id
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
+                ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
                 }`}
             >
               <item.icon className="w-5 h-5" />
@@ -192,14 +308,14 @@ const App: React.FC = () => {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
-                JD
+                {userName.substring(0, 2).toUpperCase()}
               </div>
               <div className="text-sm">
-                <p className="font-bold text-slate-900 dark:text-white">John Doe</p>
-                <p className="text-slate-500 dark:text-slate-500">Free Plan</p>
+                <p className="font-bold text-slate-900 dark:text-white">{userName}</p>
+                <p className="text-slate-500 dark:text-slate-500">{userEmail || 'Free Plan'}</p>
               </div>
             </div>
             <button
@@ -209,13 +325,33 @@ const App: React.FC = () => {
               {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
           </div>
+          <button
+            onClick={async () => {
+              try {
+                // Clear local storage
+                localStorage.removeItem('userData');
+                localStorage.removeItem('userRole');
+                setIsAuthenticated(false);
+                setUserName('User');
+                setUserEmail('');
+                setUserId(null);
+                setCurrentView(AppView.LANDING);
+              } catch (error) {
+                console.error('Logout failed:', error);
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-medium transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <LogoutIcon className="w-4 h-4" />
+            Logout
+          </button>
         </div>
       </aside>
     </>
   );
 
   const renderLanding = () => (
-    <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 flex flex-col">
       <header className="py-6 px-8 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-2 font-bold text-2xl text-indigo-600 dark:text-indigo-400">
           <ZapIcon className="w-8 h-8 fill-current" />
@@ -224,26 +360,28 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all transform hover:scale-110"
           >
             {darkMode ? <SunIcon /> : <MoonIcon />}
           </button>
-          <button
-            onClick={() => setCurrentView(AppView.DASHBOARD)}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-semibold transition-all"
-          >
-            Start Practicing
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => setCurrentView(AppView.DASHBOARD)}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-semibold transition-all transform hover:scale-105 shadow-lg shadow-indigo-600/20"
+            >
+              Start Practicing
+            </button>
+          )}
         </div>
       </header>
 
       <main className="flex-grow flex flex-col items-center justify-center text-center px-4 py-20">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-medium text-sm mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-medium text-sm mb-8 animate-pulse">
           <AwardIcon className="w-4 h-4" />
           <span>#1 AI Platform for Tech Interviews</span>
         </div>
-        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-white mb-8 tracking-tight max-w-4xl leading-tight">
-          Master your technical interviews with <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">AI precision</span>.
+        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-white mb-8 tracking-tight max-w-4xl leading-tight animate-fade-in">
+          Master your technical interviews with <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-gradient">AI precision</span>.
         </h1>
         <p className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mb-12 leading-relaxed">
           Generate realistic coding and system design questions, write code in our editor, and get instant, detailed feedback from our Gemini-powered evaluator.
@@ -251,28 +389,28 @@ const App: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row gap-4 mb-20">
           <button
-            onClick={() => setCurrentView(AppView.GENERATE)}
-            className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold rounded-xl shadow-xl shadow-indigo-600/20 hover:shadow-2xl hover:-translate-y-1 transition-all"
+            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google`}
+            className="px-8 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-lg font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] hover:border-indigo-300 dark:hover:border-indigo-600"
           >
-            Generate Question
-          </button>
-          <button
-            onClick={() => setCurrentView(AppView.DASHBOARD)}
-            className="px-8 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-lg font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
-          >
-            View Dashboard
+            <svg className="w-6 h-6" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+            </svg>
+            Sign in with Google
           </button>
         </div>
 
         {/* Feature Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full text-left">
           {[
-            { icon: <CodeIcon className="w-6 h-6 text-white" />, color: "bg-blue-500", title: "Smart Generation", desc: "Tailored questions based on difficulty, domain, and topics." },
-            { icon: <PlayIcon className="w-6 h-6 text-white" />, color: "bg-purple-500", title: "Live Execution", desc: "Write and simulate code execution directly in the browser." },
-            { icon: <BookIcon className="w-6 h-6 text-white" />, color: "bg-green-500", title: "Instant Feedback", desc: "Detailed analysis on complexity, edge cases, and best practices." }
+            { icon: <CodeIcon className="w-6 h-6 text-white" />, color: "bg-blue-500", title: "Smart Generation", desc: "Tailored questions based on difficulty, domain, and topics.", delay: "0" },
+            { icon: <PlayIcon className="w-6 h-6 text-white" />, color: "bg-purple-500", title: "Live Execution", desc: "Write and simulate code execution directly in the browser.", delay: "100" },
+            { icon: <BookIcon className="w-6 h-6 text-white" />, color: "bg-green-500", title: "Instant Feedback", desc: "Detailed analysis on complexity, edge cases, and best practices.", delay: "200" }
           ].map((f, i) => (
-            <div key={i} className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg">
-              <div className={`w-12 h-12 rounded-xl ${f.color} flex items-center justify-center mb-6`}>
+            <div key={i} className="p-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 hover:-translate-y-1">
+              <div className={`w-12 h-12 rounded-xl ${f.color} flex items-center justify-center mb-6 shadow-lg`}>
                 {f.icon}
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">{f.title}</h3>
@@ -284,76 +422,25 @@ const App: React.FC = () => {
     </div>
   );
 
-  const renderDashboard = () => (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Welcome back, John</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-2">Here is your progress overview for this week.</p>
-      </div>
+  const renderDashboard = () => {
+    // Show admin dashboard for admins
+    if (userRole === 'admin') {
+      return <AdminDashboard userEmail={userEmail} />;
+    }
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Attempts" value={history.length} icon={<HistoryIcon className="w-6 h-6 text-blue-500" />} color="bg-blue-500 text-blue-500" />
-        <StatCard title="Avg. Score" value={`${history.length ? Math.round(history.reduce((a, b) => a + (b.evaluation?.score || 0), 0) / history.length) : 0}%`} icon={<AwardIcon className="w-6 h-6 text-yellow-500" />} color="bg-yellow-500 text-yellow-500" />
-        <StatCard title="Solved" value={history.filter(h => (h.evaluation?.score || 0) > 70).length} icon={<ZapIcon className="w-6 h-6 text-green-500" />} color="bg-green-500 text-green-500" />
-        <StatCard title="Streak" value="3 Days" icon={<PlayIcon className="w-6 h-6 text-purple-500" />} color="bg-purple-500 text-purple-500" />
+    // Show student assigned questions for students
+    return (
+      <div className="space-y-8 animate-fade-in">
+        <StudentAssignedQuestions
+          userEmail={userEmail}
+          onStartQuestion={(question) => {
+            setCurrentQuestion(question);
+            setCurrentView(AppView.ATTEMPT);
+          }}
+        />
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Recent Activity</h3>
-          {history.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
-              <p>No questions attempted yet.</p>
-              <button onClick={() => setCurrentView(AppView.GENERATE)} className="text-indigo-500 hover:underline mt-2">Start a session</button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {history.slice(0, 5).map(h => (
-                <div key={h.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-lg ${h.question.type === QuestionType.CODING ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600'}`}>
-                      {h.question.type === QuestionType.CODING ? <CodeIcon className="w-5 h-5" /> : <BookIcon className="w-5 h-5" />}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-white">{h.question.title}</h4>
-                      <p className="text-sm text-slate-500">{new Date(h.date).toLocaleDateString()} • {h.question.difficulty}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${(h.evaluation?.score || 0) >= 70 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
-                      {h.evaluation?.score || 0}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Weak Areas */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Suggested Topics</h3>
-          <div className="space-y-4">
-            {['Dynamic Programming', 'System Design', 'Graph Algorithms'].map((topic, i) => (
-              <div key={i} className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">{topic}</span>
-                  <span className="text-xs font-semibold text-indigo-500">Medium Priority</span>
-                </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
-                  <div className="bg-indigo-500 h-2 rounded-full" style={{ width: '40%' }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button onClick={() => setCurrentView(AppView.GENERATE)} className="w-full mt-6 py-3 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-            Practice These Topics
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderAttempt = () => {
     if (!currentQuestion) return null;
@@ -364,7 +451,7 @@ const App: React.FC = () => {
           <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
             <div className="flex items-center gap-2 mb-4">
               <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${currentQuestion.difficulty === Difficulty.HARD ? 'bg-red-100 text-red-700' :
-                  currentQuestion.difficulty === Difficulty.MEDIUM ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                currentQuestion.difficulty === Difficulty.MEDIUM ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
                 }`}>
                 {currentQuestion.difficulty}
               </span>
@@ -478,28 +565,135 @@ const App: React.FC = () => {
   };
 
   // Main Render
-  if (currentView === AppView.LANDING) {
-    return renderLanding();
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 flex">
-      {renderSidebar()}
+    <>
+      {/* Admin Code Modal - Rendered at root level */}
+      <AdminCodeModal
+        isOpen={showAdminCodeModal}
+        userEmail={userEmail}
+        userName={userName}
+        onClose={() => {
+          setShowAdminCodeModal(false);
+          setIsAuthenticated(false);
+          localStorage.removeItem('userData');
+          localStorage.removeItem('userRole');
+        }}
+        onSuccess={() => {
+          setShowAdminCodeModal(false);
+          setIsAuthenticated(true);
+          setUserRole('admin');
+          setCurrentView(AppView.DASHBOARD);
+        }}
+      />
 
-      <div className="flex-1 lg:ml-72 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center lg:hidden">
-          <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
-            <MenuIcon />
-          </button>
-          <span className="font-bold text-lg text-slate-900 dark:text-white">InterviewAI</span>
-          <div className="w-8"></div> {/* Spacer */}
-        </header>
+      {/* Show login page if not authenticated */}
+      {!isAuthenticated ? (
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full animate-fade-in">
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-slate-200 dark:border-slate-800">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4 shadow-lg animate-pulse">
+                  <CodeIcon className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+                  AI Interview Coach
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Master your technical interviews with AI precision
+                </p>
+              </div>
 
-        <main className="flex-grow p-6 lg:p-8 overflow-auto">
-          {renderContent()}
-        </main>
-      </div>
-    </div>
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 text-center">
+                  Choose your role to continue
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Student Login */}
+                  <button
+                    onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
+                    className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-2xl p-6 text-left transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                  >
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                          <BookIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white">Student</h3>
+                      </div>
+                      <p className="text-blue-100 text-sm mb-4">
+                        Practice coding questions and improve your interview skills
+                      </p>
+                      <div className="flex items-center gap-2 text-white text-sm font-medium">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        Sign in with Google
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/10 to-blue-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                  </button>
+
+                  {/* Administrator Login */}
+                  <button
+                    onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=admin`}
+                    className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-2xl p-6 text-left transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                  >
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                          <UserIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white">Administrator</h3>
+                      </div>
+                      <p className="text-purple-100 text-sm mb-4">
+                        Manage users, questions, and system settings
+                      </p>
+                      <div className="flex items-center gap-2 text-white text-sm font-medium">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        Sign in with Google + Code
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-400/0 via-white/10 to-purple-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+                Secure authentication powered by Google
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : currentView === AppView.LANDING ? (
+        renderLanding()
+      ) : (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 flex">
+          {renderSidebar()}
+
+          <div className="flex-1 lg:ml-72 flex flex-col min-h-screen">
+            <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center lg:hidden">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
+                <MenuIcon />
+              </button>
+              <span className="font-bold text-lg text-slate-900 dark:text-white">InterviewAI</span>
+              <div className="w-8"></div> {/* Spacer */}
+            </header>
+
+            <main className="flex-grow p-6 lg:p-8 overflow-auto">
+              {renderContent()}
+            </main>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

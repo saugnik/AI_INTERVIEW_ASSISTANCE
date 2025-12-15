@@ -7,16 +7,22 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start:api": "node server.js",
+    "start:api": "node server-express.cjs",
+    "start:auth": "cd AUTH_SYSTEM/backend && npm start",
     "test:api": "node scripts/test-api.mjs",
     "prisma:seed": "node prisma/seed.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.22.0",
+    "connect-pg-simple": "^10.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-session": "^1.18.2",
     "lucide-react": "^0.408.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
