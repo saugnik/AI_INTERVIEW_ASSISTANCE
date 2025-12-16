@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { BookIcon, UserIcon, CheckCircleIcon, ClockIcon } from './icons';
+import AdminAIQuestionGenerator from './AdminAIQuestionGenerator';
 
 interface Question {
     id: string;
@@ -38,6 +39,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
     const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignmentType, setAssignmentType] = useState<'practice' | 'test'>('practice');
+    const [showAIGenerator, setShowAIGenerator] = useState(false);
 
     const API_URL = 'http://localhost:3001';
 
@@ -218,63 +220,96 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                 <div className="p-6">
                     {activeTab === 'questions' ? (
                         <div className="space-y-4">
+                            {/* AI Generator Button */}
+                            {!showAIGenerator && (
+                                <button
+                                    onClick={() => setShowAIGenerator(true)}
+                                    className="w-full px-6 py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <span>✨</span>
+                                    Generate AI Question
+                                </button>
+                            )}
+
+                            {/* AI Generator */}
+                            {showAIGenerator && (
+                                <div className="space-y-4">
+                                    <AdminAIQuestionGenerator
+                                        onQuestionGenerated={() => {
+                                            setShowAIGenerator(false);
+                                            fetchQuestions();
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => setShowAIGenerator(false)}
+                                        className="w-full px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Search */}
-                            <input
-                                type="text"
-                                placeholder="Search questions..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none transition-colors"
-                            />
+                            {!showAIGenerator && (
+                                <input
+                                    type="text"
+                                    placeholder="Search questions..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none transition-colors"
+                                />
+                            )}
 
                             {/* Questions List */}
-                            <div className="space-y-3">
-                                {filteredQuestions.map((question) => (
-                                    <div
-                                        key={question.id}
-                                        className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
-                                    >
-                                        <div className="flex-1">
-                                            <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                                                {question.title}
-                                            </h3>
-                                            <div className="flex items-center gap-3 text-sm">
-                                                <span className={`px-2 py-1 rounded-md font-medium ${getDifficultyColor(question.difficulty)}`}>
-                                                    {question.difficulty}
-                                                </span>
-                                                <span className="text-slate-600 dark:text-slate-400">{question.domain}</span>
-                                                {question._count && (
-                                                    <span className="text-slate-500 dark:text-slate-500">
-                                                        {question._count.question_assignments} assigned
+                            {!showAIGenerator && (
+                                <div className="space-y-3">
+                                    {filteredQuestions.map((question) => (
+                                        <div
+                                            key={question.id}
+                                            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
+                                        >
+                                            <div className="flex-1">
+                                                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
+                                                    {question.title}
+                                                </h3>
+                                                <div className="flex items-center gap-3 text-sm">
+                                                    <span className={`px-2 py-1 rounded-md font-medium ${getDifficultyColor(question.difficulty)}`}>
+                                                        {question.difficulty}
                                                     </span>
-                                                )}
+                                                    <span className="text-slate-600 dark:text-slate-400">{question.domain}</span>
+                                                    {question._count && (
+                                                        <span className="text-slate-500 dark:text-slate-500">
+                                                            {question._count.question_assignments} assigned
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedQuestion(question.id);
+                                                        setAssignmentType('practice');
+                                                        setShowAssignModal(true);
+                                                    }}
+                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                                >
+                                                    📝 Add Practice
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedQuestion(question.id);
+                                                        setAssignmentType('test');
+                                                        setShowAssignModal(true);
+                                                    }}
+                                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                                >
+                                                    🎯 Add Test
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedQuestion(question.id);
-                                                    setAssignmentType('practice');
-                                                    setShowAssignModal(true);
-                                                }}
-                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                                            >
-                                                📝 Add Practice
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedQuestion(question.id);
-                                                    setAssignmentType('test');
-                                                    setShowAssignModal(true);
-                                                }}
-                                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                                            >
-                                                🎯 Add Test
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-3">

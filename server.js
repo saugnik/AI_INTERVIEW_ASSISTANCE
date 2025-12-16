@@ -16,8 +16,8 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:5173',
 ]);
 
-// Gemini API key for REST API calls
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// Groq API key for REST API calls (OpenAI-compatible format)
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -216,11 +216,11 @@ export const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Server proxy endpoint: generate a question via Google GenAI using a server-side key
+  // Server proxy endpoint: generate a question via Groq AI using a server-side key
   if (pathname === '/api/generate' && req.method === 'POST') {
-    if (!GEMINI_API_KEY) {
+    if (!GROQ_API_KEY) {
       res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ error: 'Server missing GEMINI_API_KEY' }));
+      res.end(JSON.stringify({ error: 'Server missing GROQ_API_KEY' }));
       return;
     }
 
@@ -232,20 +232,56 @@ export const server = http.createServer(async (req, res) => {
         const payload = body ? JSON.parse(body) : {};
         const { domain = 'DSA', difficulty = 'MEDIUM', type = 'CODING' } = payload;
 
-        const prompt = `Generate a single unique ${difficulty} interview question for ${domain} of type ${type}. Return ONLY valid JSON with this exact structure: {"title": "string", "description": "string", "starterCode": "string", "testCases": [{"input": "string", "expected": "string"}]}`;
+        let prompt = '';
 
-        // Use Gemini REST API
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        if (type === 'Theory') {
+          prompt = `Generate a ${difficulty} level THEORY question for "${domain}". This is CONCEPTUAL, not coding.
+Return ONLY valid JSON:
+{"title":"Question","description":"Theoretical question to answer","constraints":["200-300 words"],"examples":[{"input":"Approach","output":"Key points","explanation":"Why"}],"starterCode":"","testCases":[],"hints":["Hint 1","Hint 2"]}`;
+        } else if (type === 'System Design') {
+          prompt = `Generate a ${difficulty} level SYSTEM DESIGN question for "${domain}". This is ARCHITECTURE, not coding.
+Return ONLY valid JSON:
+{"title":"Design X","description":"System to design","constraints":["Scale: 100M users"],"examples":[{"input":"Scenario","output":"Components","explanation":"Why"}],"starterCode":"","testCases":[],"hints":["Scalability","Caching"]}`;
+        } else {
+          prompt = `Generate a ${difficulty} level CODING question for "${domain}". Requires writing CODE.
+Return ONLY valid JSON:
+{"title":"Problem","description":"What to solve","constraints":["Constraint"],"examples":[{"input":"Input","output":"Output","explanation":"Why"}],"starterCode":"function solve(x) {\n  //code\n}","testCases":[{"input":"1","expected":"1"},{"input":"2","expected":"2"}],"hints":["Hint"]}`;
+        }
+
+
+        // Use Groq REST API (OpenAI-compatible format)
+        const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
         const apiResponse = await fetch(apiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              {
+                role: 'system',
+                content: `You are an expert technical interviewer. Generate high-quality ${type} interview questions. Always respond with valid JSON only, no markdown formatting.`
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.9,
+            max_tokens: 2048
           })
         });
 
         const apiData = await apiResponse.json();
-        let text = apiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        console.log('🤖 Groq API Response:', JSON.stringify(apiData, null, 2));
+
+        if (!apiResponse.ok) {
+          throw new Error(`Groq API error: ${apiData.error?.message || 'Unknown error'}`);
+        }
+
+        let text = apiData.choices?.[0]?.message?.content || '{}';
 
         // Extract JSON from markdown code blocks if present
         const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
@@ -257,9 +293,14 @@ export const server = http.createServer(async (req, res) => {
           text = text.substring(start, end);
         }
 
+        // Validate JSON before sending
+        const parsedData = JSON.parse(text);
+        console.log('✅ Parsed AI response:', JSON.stringify(parsedData, null, 2));
+
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(text);
+        res.end(JSON.stringify(parsedData));
       } catch (err) {
+        console.error('❌ Error in /api/generate:', err);
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ error: (err && err.message) || String(err) }));
       }
@@ -275,41 +316,205 @@ export const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const payload = body ? JSON.parse(body) : {};
-        const { question = {}, userAnswer = '' } = payload;
+        const { question = {}, userAnswer = '', testCases = [] } = payload;
 
-        const prompt = `Evaluate the following answer for the interview question: "${question.title || 'Untitled'}".\nQuestion:\n${question.description || ''}\nUser Answer:\n${userAnswer}`;
+        console.log('🧪 Evaluating code submission...');
+        console.log('Question:', question.title);
+        console.log('Test cases:', testCases.length);
 
-        // Mock evaluation - works instantly and reliably
-        const codeLength = userAnswer.length;
-        const hasReturn = userAnswer.includes('return');
-        const hasFunction = userAnswer.includes('function');
-        const hasComments = userAnswer.includes('//') || userAnswer.includes('/*');
+        // Run code against test cases
+        let passedTests = 0;
+        let totalTests = testCases.length || 0;
+        const testResults = [];
 
-        // Calculate score based on code quality
-        let score = 70;
-        if (hasReturn && hasFunction) score += 15;
-        if (hasComments) score += 5;
-        if (codeLength > 100) score += 10;
+        if (totalTests > 0) {
+          const vm = await import('vm');
 
-        const mockEvaluation = {
-          score: Math.min(score, 100),
-          feedback: "Your solution demonstrates good understanding of the problem. The code is well-structured and follows best practices.",
-          strengths: [
-            "Clear and readable code structure",
-            "Proper function implementation",
-            "Good variable naming conventions"
-          ],
-          improvements: [
-            "Consider adding edge case handling",
-            "Add input validation for robustness",
-            "Optimize time complexity where possible"
-          ],
-          correctSolution: `function optimizedSolution(input) {\n  // Optimal approach with O(n) complexity\n  const result = input.reduce((acc, val) => acc + val, 0);\n  return result;\n}`,
-          complexityAnalysis: "Time Complexity: O(n), Space Complexity: O(1)"
+          for (let i = 0; i < testCases.length; i++) {
+            const testCase = testCases[i];
+            try {
+              // Parse input if it's a JSON string
+              let parsedInput = testCase.input;
+              if (typeof parsedInput === 'string') {
+                try {
+                  parsedInput = JSON.parse(parsedInput);
+                } catch (e) {
+                  // If parsing fails, keep as string
+                }
+              }
+
+              // Create a sandbox environment
+              const sandbox = {
+                console: console,
+                result: null
+              };
+
+              // Wrap user code to capture the result
+              const wrappedCode = `
+                ${userAnswer}
+                // Try to find and execute the main function
+                const functionMatch = \`${userAnswer}\`.match(/function\\s+(\\w+)/);
+                if (functionMatch) {
+                  const funcName = functionMatch[1];
+                  if (typeof eval(funcName) === 'function') {
+                    result = eval(funcName)(${JSON.stringify(parsedInput)});
+                  }
+                }
+              `;
+
+              vm.runInNewContext(wrappedCode, sandbox, { timeout: 1000 });
+
+              const userOutput = String(sandbox.result || '').trim();
+              const expectedOutput = String(testCase.expected || testCase.output || '').trim();
+
+              const passed = userOutput === expectedOutput;
+              if (passed) passedTests++;
+
+              testResults.push({
+                input: testCase.input,
+                expected: expectedOutput,
+                actual: userOutput,
+                passed
+              });
+
+            } catch (error) {
+              testResults.push({
+                input: testCase.input,
+                expected: testCase.expected || testCase.output,
+                actual: `Error: ${error.message}`,
+                passed: false
+              });
+            }
+          }
+        }
+
+        // Calculate score based on test results
+        const score = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
+
+        // Generate feedback based on results
+        let feedback = '';
+        let strengths = [];
+        let improvements = [];
+
+        if (score === 100) {
+          feedback = "Excellent! Your solution passes all test cases. The code is correct and handles all scenarios properly.";
+          strengths = [
+            "Passes all test cases",
+            "Correct implementation",
+            "Handles all edge cases"
+          ];
+        } else if (score >= 70) {
+          feedback = "Good effort! Your solution passes most test cases but needs some adjustments.";
+          strengths = [
+            `Passes ${passedTests} out of ${totalTests} test cases`,
+            "Shows understanding of the problem"
+          ];
+          improvements = [
+            "Review the failing test cases",
+            "Check edge cases handling",
+            "Verify output format matches expected"
+          ];
+        } else if (score > 0) {
+          feedback = "Your solution needs significant improvements. Please review the test cases and try again.";
+          strengths = [
+            `Passes ${passedTests} out of ${totalTests} test cases`
+          ];
+          improvements = [
+            "Review the problem requirements carefully",
+            "Test your code with the provided examples",
+            "Check your logic for correctness"
+          ];
+        } else {
+          feedback = "Your solution doesn't pass any test cases. Please review the problem and try a different approach.";
+          improvements = [
+            "Review the problem statement",
+            "Start with the basic examples",
+            "Test your code before submitting"
+          ];
+        }
+
+        // Generate reference solution if score < 100% using Groq API
+        let referenceSolution = null;
+        let complexityAnalysis = null;
+
+        if (score < 100 && GROQ_API_KEY) {
+          try {
+            const solutionPrompt = `Generate an optimal solution for this coding problem:
+
+Problem: ${question.title || 'Coding Problem'}
+Description: ${question.description || question.prompt || 'No description'}
+
+Requirements:
+- Provide a clean, well-commented JavaScript solution
+- Include time and space complexity analysis
+- Make it beginner-friendly with explanations
+
+Return ONLY valid JSON:
+{
+  "solution": "function name(params) {\\n  // code here\\n}",
+  "explanation": "Brief explanation of the approach",
+  "timeComplexity": "O(n)",
+  "spaceComplexity": "O(1)"
+}`;
+
+            const apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+            const apiResponse = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${GROQ_API_KEY}`
+              },
+              body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'You are an expert coding instructor. Provide clear, optimal solutions with explanations.'
+                  },
+                  {
+                    role: 'user',
+                    content: solutionPrompt
+                  }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024,
+                response_format: { type: 'json_object' }
+              })
+            });
+
+            if (apiResponse.ok) {
+              const apiData = await apiResponse.json();
+              const solutionData = JSON.parse(apiData.choices?.[0]?.message?.content || '{}');
+
+              referenceSolution = solutionData.solution || null;
+              complexityAnalysis = `Time: ${solutionData.timeComplexity || 'N/A'}, Space: ${solutionData.spaceComplexity || 'N/A'}`;
+
+              if (solutionData.explanation) {
+                improvements.unshift(`Optimal approach: ${solutionData.explanation}`);
+              }
+            }
+          } catch (error) {
+            console.error('Error generating reference solution:', error);
+            // Continue without reference solution
+          }
+        }
+
+        const evaluation = {
+          score,
+          feedback,
+          strengths,
+          improvements,
+          testResults,
+          passedTests,
+          totalTests,
+          referenceSolution,
+          complexityAnalysis
         };
 
+        console.log('✅ Evaluation complete:', { score, passedTests, totalTests });
+
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(mockEvaluation));
+        res.end(JSON.stringify(evaluation));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ error: (err && err.message) || String(err) }));
@@ -728,9 +933,9 @@ export const server = http.createServer(async (req, res) => {
           title: generatedData.title || 'Untitled Question',
           prompt: generatedData.description || 'No description provided',
           constraints: generatedData.constraints || [],
-          examples: generatedData.testCases || [],
-          starter_code: generatedData.codeStarter || '',
-          reference_solution: generatedData.correctSolution || null
+          examples: generatedData.examples || generatedData.testCases || [],
+          starter_code: generatedData.starterCode || '',
+          reference_solution: generatedData.hints ? generatedData.hints.join('\n') : null
         };
         console.log('📊 Question data to insert:', JSON.stringify(questionData, null, 2));
 
@@ -739,14 +944,12 @@ export const server = http.createServer(async (req, res) => {
         });
         console.log('✅ Question saved successfully! ID:', question.id);
 
-        // Auto-assign to student with source: 'ai'
+        // Auto-assign to student (will use defaults: assignment_type='practice', source='admin')
         const assignment = await prisma.question_assignments.create({
           data: {
             question_id: question.id,
             student_email: user.email,
-            assigned_by: 'AI System',
-            assignment_type: 'practice',
-            source: 'ai'
+            assigned_by: 'AI System'
           }
         });
 
@@ -761,6 +964,48 @@ export const server = http.createServer(async (req, res) => {
         console.error('Error generating AI question:', error);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Failed to generate AI question: ' + error.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/admin/create-question - Admin creates a question for the library
+  if (pathname === '/api/admin/create-question' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const questionData = JSON.parse(body);
+        console.log('📝 Admin creating question:', questionData.title);
+
+        // Create question in database
+        const question = await prisma.questions.create({
+          data: {
+            id: crypto.randomUUID(),
+            domain: questionData.domain,
+            difficulty: questionData.difficulty,
+            type: questionData.type,
+            title: questionData.title,
+            prompt: questionData.description,
+            constraints: questionData.constraints || [],
+            examples: questionData.examples || [],
+            starter_code: questionData.starterCode || '',
+            reference_solution: questionData.hints ? questionData.hints.join('\n') : null
+          }
+        });
+
+        console.log('✅ Question created successfully! ID:', question.id);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          question,
+          message: 'Question created successfully!'
+        }));
+      } catch (error) {
+        console.error('Error creating question:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to create question: ' + error.message }));
       }
     });
     return;

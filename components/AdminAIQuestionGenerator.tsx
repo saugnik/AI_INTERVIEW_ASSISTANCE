@@ -1,15 +1,14 @@
 /**
- * AI Question Generator Component
- * Allows students to generate practice questions using AI
+ * Admin AI Question Generator Component
+ * Allows admins to generate questions using AI for the question library
  */
 import React, { useState } from 'react';
 
-interface AIQuestionGeneratorProps {
-    userEmail: string;
+interface AdminAIQuestionGeneratorProps {
     onQuestionGenerated: () => void;
 }
 
-const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, onQuestionGenerated }) => {
+const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQuestionGenerated }) => {
     const [domain, setDomain] = useState('Data Structures & Algorithms');
     const [difficulty, setDifficulty] = useState('Medium');
     const [type, setType] = useState('Coding');
@@ -25,25 +24,50 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
         setSuccess('');
 
         try {
-            const response = await fetch(`${API_URL}/api/student/generate-ai-question`, {
+            // First generate the question
+            const generateResponse = await fetch(`${API_URL}/api/generate`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-email': userEmail,
-                    'x-user-role': 'student'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ domain, difficulty, type })
             });
 
-            const data = await response.json();
+            const questionData = await generateResponse.json();
 
-            if (data.success) {
-                setSuccess('✅ Question generated and added to your list below! Scroll down to see it.');
+            if (!generateResponse.ok) {
+                throw new Error('Failed to generate question');
+            }
+
+            // Then save it to the database via admin endpoint
+            const saveResponse = await fetch(`${API_URL}/api/admin/create-question`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    domain,
+                    difficulty,
+                    type,
+                    title: questionData.title,
+                    description: questionData.description,
+                    constraints: questionData.constraints || [],
+                    examples: questionData.examples || [],
+                    starterCode: questionData.starterCode || '',
+                    testCases: questionData.testCases || [],
+                    hints: questionData.hints || []
+                })
+            });
+
+            const saveData = await saveResponse.json();
+
+            if (saveData.success) {
+                setSuccess('✅ Question generated and added to library!');
                 setTimeout(() => {
                     onQuestionGenerated();
-                }, 2500);
+                }, 2000);
             } else {
-                setError(data.error || 'Failed to generate question');
+                setError(saveData.error || 'Failed to save question');
             }
         } catch (err) {
             setError('Failed to generate question. Please try again.');
@@ -60,10 +84,10 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                     <span className="text-3xl">🤖</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                    Generate AI Practice Question
+                    Generate AI Question
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400">
-                    Create a personalized interview question using AI
+                    Create a new question using AI for your question library
                 </p>
             </div>
 
@@ -98,8 +122,8 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                                 key={diff}
                                 onClick={() => setDifficulty(diff)}
                                 className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${difficulty === diff
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                                    : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                                     }`}
                             >
                                 {diff}
@@ -119,8 +143,8 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                                 key={t}
                                 onClick={() => setType(t)}
                                 className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${type === t
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                                    : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                                     }`}
                             >
                                 {t}
@@ -170,4 +194,4 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
     );
 };
 
-export default AIQuestionGenerator;
+export default AdminAIQuestionGenerator;

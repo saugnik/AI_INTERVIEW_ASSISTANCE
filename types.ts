@@ -41,7 +41,7 @@ export interface Question {
   domain: Domain;
   type: QuestionType;
   codeStarter?: string;
-  testCases?: {input: string; expectedOutput: string}[];
+  testCases?: { input: string; expectedOutput: string }[];
   hints?: string[];
   constraints?: string[];
 }
@@ -51,8 +51,17 @@ export interface Evaluation {
   feedback: string;
   strengths: string[];
   improvements: string[];
-  correctSolution: string;
+  correctSolution?: string; // Legacy field
+  referenceSolution?: string; // New field from backend
   complexityAnalysis?: string;
+  testResults?: Array<{
+    input: string;
+    expected: string;
+    actual: string;
+    passed: boolean;
+  }>;
+  passedTests?: number;
+  totalTests?: number;
 }
 
 export interface Attempt {
