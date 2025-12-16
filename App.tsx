@@ -20,6 +20,7 @@ import EvaluationDisplay from './components/VideoResult';
 import AdminCodeModal from './components/AdminCodeModal';
 import AdminDashboard from './components/AdminDashboard';
 import StudentAssignedQuestions from './components/StudentAssignedQuestions';
+import Profile from './components/Profile';
 import {
   AwardIcon,
   BookIcon,
@@ -276,28 +277,31 @@ const App: React.FC = () => {
           </button>
         </div>
 
+
         <nav className="px-4 space-y-2 mt-4">
           {[
-            { id: AppView.DASHBOARD, label: 'Dashboard', icon: DashboardIcon },
-            { id: AppView.GENERATE, label: 'Practice', icon: CodeIcon },
-            { id: AppView.HISTORY, label: 'History', icon: HistoryIcon },
-            { id: AppView.PROFILE, label: 'Profile', icon: UserIcon },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setCurrentView(item.id);
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium ${currentView === item.id
-                ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
-                }`}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </button>
-          ))}
+            { id: AppView.DASHBOARD, label: 'Dashboard', icon: DashboardIcon, roles: ['student', 'admin'] },
+            { id: AppView.GENERATE, label: 'Practice', icon: CodeIcon, roles: ['student'] },
+            { id: AppView.HISTORY, label: 'History', icon: HistoryIcon, roles: ['student'] },
+            { id: AppView.PROFILE, label: 'Profile', icon: UserIcon, roles: ['student', 'admin'] },
+          ]
+            .filter(item => item.roles.includes(userRole))
+            .map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setCurrentView(item.id);
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium ${currentView === item.id
+                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
+                  }`}
+              >
+                <item.icon className="w-5 h-5" />
+                {item.label}
+              </button>
+            ))}
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-200 dark:border-slate-800">
@@ -553,6 +557,7 @@ const App: React.FC = () => {
         </div>
       ) : null;
       case AppView.HISTORY: return renderDashboard(); // Fallback reuse for now
+      case AppView.PROFILE: return <Profile userEmail={userEmail} userName={userName} userRole={userRole} />;
       default: return renderDashboard();
     }
   };

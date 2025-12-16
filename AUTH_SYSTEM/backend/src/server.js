@@ -99,6 +99,29 @@ app.get('/auth/google/callback', async (req, res) => {
 
         console.log('✅ Got user profile:', profile.email);
 
+        // Save user to database
+        try {
+            const saveResponse = await fetch('http://localhost:3001/api/auth/save-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: profile.email,
+                    name: profile.name,
+                    google_id: profile.id,
+                    role: role
+                })
+            });
+
+            if (saveResponse.ok) {
+                console.log('✅ User saved to database');
+            } else {
+                console.log('⚠️ Failed to save user to database, but continuing...');
+            }
+        } catch (dbError) {
+            console.error('⚠️ Database save error:', dbError.message);
+            // Continue anyway - user can still login
+        }
+
         // Create user object with role
         const user = {
             id: profile.id,

@@ -1011,6 +1011,211 @@ Return ONLY valid JSON:
     return;
   }
 
+  // GET /api/admin/students - Get all students for admin
+  if (pathname === '/api/admin/students' && req.method === 'GET') {
+    try {
+      console.log('📊 Admin fetching students list...');
+
+      // Get all users from auth_users table
+      const users = await prisma.$queryRawUnsafe(`
+        SELECT email, name, role, created_at 
+        FROM auth_users 
+        WHERE role = 'student'
+        ORDER BY created_at DESC
+      `);
+
+      // For each user, get their assignment stats
+      const studentsWithStats = await Promise.all(users.map(async (user) => {
+        const assignments = await prisma.question_assignments.findMany({
+          where: { student_email: user.email }
+        });
+
+        const completed = assignments.filter(a => a.completed).length;
+        const total = assignments.length;
+        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        return {
+          email: user.email,
+          name: user.name || user.email.split('@')[0],
+          assignedQuestions: total,
+          completedQuestions: completed,
+          progress
+        };
+      }));
+
+      console.log(`✅ Found ${studentsWithStats.length} students`);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ students: studentsWithStats }));
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to fetch students: ' + error.message }));
+    }
+    return;
+  }
+
+  // GET /api/student/profile - Get student profile with stats
+  if (pathname === '/api/student/profile' && req.method === 'GET') {
+    try {
+      const userEmail = req.headers['x-user-email'];
+      console.log('📊 Fetching student profile for:', userEmail);
+
+      // Get all assignments for this student
+      const assignments = await prisma.question_assignments.findMany({
+        where: { student_email: userEmail },
+        include: {
+          questions: true
+        },
+        orderBy: { assigned_at: 'desc' }
+      });
+
+      const totalAssigned = assignments.length;
+      const totalCompleted = assignments.filter(a => a.completed).length;
+      const completionRate = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
+
+      // Get recent attempts with scores
+      const recentAttempts = assignments
+        .filter(a => a.completed && a.score !== null)
+        .slice(0, 10)
+        .map(a => ({
+          questionTitle: a.questions.title,
+          score: a.score || 0,
+          completedAt: a.completed_at
+        }));
+
+      // Calculate average score
+      const scores = assignments.filter(a => a.score !== null).map(a => a.score || 0);
+      const averageScore = scores.length > 0
+        ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+        : 0;
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        totalAssigned,
+        totalCompleted,
+        averageScore,
+        completionRate,
+        recentAttempts
+      }));
+    } catch (error) {
+      console.error('Error fetching student profile:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to fetch profile' }));
+    }
+    return;
+  }
+
+  // GET /api/admin/profile - Get admin profile with assignment history
+  if (pathname === '/api/admin/profile' && req.method === 'GET') {
+    try {
+      const userEmail = req.headers['x-user-email'];
+      console.log('📊 Fetching admin profile for:', userEmail);
+
+      // Get all assignments made by this admin
+      const assignments = await prisma.question_assignments.findMany({
+        include: {
+          questions: true
+        },
+        orderBy: { assigned_at: 'desc' }
+      });
+
+      const totalAssignments = assignments.length;
+
+      // Get unique students managed
+      const uniqueStudents = new Set(assignments.map(a => a.student_email));
+      const studentsManaged = uniqueStudents.size;
+
+      // Get recent assignments
+      const recentAssignments = assignments.slice(0, 20).map(a => ({
+        questionTitle: a.questions.title,
+        studentEmail: a.student_email,
+        assignedAt: a.assigned_at,
+        assignmentType: a.assignment_type
+      }));
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        totalAssignments,
+        studentsManaged,
+        recentAssignments
+      }));
+    } catch (error) {
+      console.error('Error fetching admin profile:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to fetch profile' }));
+    }
+    return;
+  }
+
+  // POST /api/auth/save-user - Save user to database after OAuth login
+  if (pathname === '/api/auth/save-user' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const { email, name, google_id, role } = JSON.parse(body);
+        console.log('💾 Saving user to database:', email, 'Role:', role);
+
+        // Use raw SQL to insert or update user
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO auth_users (email, name, google_id, role, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          ON CONFLICT (email) 
+          DO UPDATE SET 
+            name = EXCLUDED.name,
+            google_id = EXCLUDED.google_id,
+            role = EXCLUDED.role,
+            updated_at = NOW()
+        `, email, name, google_id, role);
+
+        console.log('✅ User saved successfully');
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('Error saving user:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to save user' }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/auth/save-user - Save user after OAuth login
+  if (pathname === '/api/auth/save-user' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const { email, name, google_id, role } = JSON.parse(body);
+        console.log('💾 Saving user to database:', email, 'Role:', role);
+
+        // Insert or update user in auth_users table
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO auth_users (email, name, google_id, role, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          ON CONFLICT (email) 
+          DO UPDATE SET 
+            name = EXCLUDED.name,
+            google_id = EXCLUDED.google_id,
+            role = EXCLUDED.role,
+            updated_at = NOW()
+        `, email, name, google_id, role);
+
+        console.log('✅ User saved successfully');
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('❌ Error saving user:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to save user: ' + error.message }));
+      }
+    });
+    return;
+  }
+
   // 404 for unknown routes
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Not found' }));

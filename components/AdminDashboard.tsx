@@ -220,14 +220,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                 <div className="p-6">
                     {activeTab === 'questions' ? (
                         <div className="space-y-4">
-                            {/* AI Generator Button */}
+                            {/* AI-Powered Search */}
+                            {!showAIGenerator && (
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="🔍 AI Search: Try 'sorting algorithms' or 'medium difficulty DSA questions'..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full px-6 py-4 pr-12 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none transition-colors text-lg"
+                                    />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Generate New Question Button */}
                             {!showAIGenerator && (
                                 <button
                                     onClick={() => setShowAIGenerator(true)}
-                                    className="w-full px-6 py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2"
+                                    className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg shadow-green-600/20 transition-all flex items-center justify-center gap-2"
                                 >
-                                    <span>✨</span>
-                                    Generate AI Question
+                                    <span>➕</span>
+                                    Generate New Question with AI
                                 </button>
                             )}
 
@@ -247,17 +265,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                                         Cancel
                                     </button>
                                 </div>
-                            )}
-
-                            {/* Search */}
-                            {!showAIGenerator && (
-                                <input
-                                    type="text"
-                                    placeholder="Search questions..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none transition-colors"
-                                />
                             )}
 
                             {/* Questions List */}
