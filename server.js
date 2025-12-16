@@ -716,22 +716,28 @@ export const server = http.createServer(async (req, res) => {
         }
 
         const generatedData = await generateResponse.json();
+        console.log('📝 Generated data from AI:', JSON.stringify(generatedData, null, 2));
 
         // Create question in database
+        console.log('💾 Attempting to save question to database...');
+        const questionData = {
+          id: crypto.randomUUID(),
+          domain,
+          difficulty,
+          type,
+          title: generatedData.title || 'Untitled Question',
+          prompt: generatedData.description || 'No description provided',
+          constraints: generatedData.constraints || [],
+          examples: generatedData.testCases || [],
+          starter_code: generatedData.codeStarter || '',
+          reference_solution: generatedData.correctSolution || null
+        };
+        console.log('📊 Question data to insert:', JSON.stringify(questionData, null, 2));
+
         const question = await prisma.questions.create({
-          data: {
-            id: crypto.randomUUID(),
-            domain,
-            difficulty,
-            type,
-            title: generatedData.title || 'Untitled Question',
-            prompt: generatedData.description || 'No description provided',
-            constraints: generatedData.constraints || [],
-            examples: generatedData.testCases || [],
-            starter_code: generatedData.codeStarter || '',
-            reference_solution: generatedData.correctSolution || null
-          }
+          data: questionData
         });
+        console.log('✅ Question saved successfully! ID:', question.id);
 
         // Auto-assign to student with source: 'ai'
         const assignment = await prisma.question_assignments.create({
