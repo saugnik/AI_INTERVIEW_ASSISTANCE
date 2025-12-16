@@ -5,6 +5,7 @@
 
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -356,6 +357,71 @@ router.post('/student/mark-complete/:assignmentId', requireAuth, async (req, res
     } catch (error) {
         console.error('Error marking assignment complete:', error);
         res.status(500).json({ error: 'Failed to mark assignment complete' });
+    }
+});
+
+/**
+ * POST /api/student/generate-ai-question
+ * Generate an AI question and auto-assign to student
+ */
+router.post('/student/generate-ai-question', requireAuth, async (req, res) => {
+    try {
+        const { domain, difficulty, type } = req.body;
+
+        if (!domain || !difficulty || !type) {
+            return res.status(400).json({ error: 'Domain, difficulty, and type are required' });
+        }
+
+        // Call the generate API endpoint
+        const generateResponse = await fetch('http://localhost:3001/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domain, difficulty, type })
+        });
+
+        if (!generateResponse.ok) {
+            const errorText = await generateResponse.text();
+            throw new Error(`Question generation failed: ${errorText}`);
+        }
+
+        const generatedData = await generateResponse.json();
+
+        // Create question in database
+        const question = await prisma.questions.create({
+            data: {
+                id: crypto.randomUUID(),
+                domain,
+                difficulty,
+                type,
+                title: generatedData.title,
+                prompt: generatedData.description,
+                constraints: generatedData.constraints || [],
+                examples: generatedData.testCases || [],
+                starter_code: generatedData.codeStarter || '',
+                reference_solution: generatedData.correctSolution || null
+            }
+        });
+
+        // Auto-assign to student with source: 'ai'
+        const assignment = await prisma.question_assignments.create({
+            data: {
+                question_id: question.id,
+                student_email: req.userEmail,
+                assigned_by: 'AI System',
+                assignment_type: 'practice',
+                source: 'ai'
+            }
+        });
+
+        res.json({
+            success: true,
+            question,
+            assignment,
+            message: 'AI question generated and assigned successfully!'
+        });
+    } catch (error) {
+        console.error('Error generating AI question:', error);
+        res.status(500).json({ error: 'Failed to generate AI question: ' + error.message });
     }
 });
 

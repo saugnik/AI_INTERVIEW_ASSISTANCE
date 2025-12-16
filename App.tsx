@@ -89,18 +89,15 @@ const App: React.FC = () => {
         setUserId(user.id || null);
         setUserRole(user.role || 'student');
 
-        // Store user data in localStorage
         localStorage.setItem('userData', JSON.stringify(user));
         localStorage.setItem('userRole', user.role || 'student');
 
-        // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
 
-        // If admin role and needs code verification, show modal
         if (user.needsAdminCode && user.role === 'admin') {
           console.log('✅ Showing admin code modal for:', user.email);
           setShowAdminCodeModal(true);
-          setIsAuthenticated(false); // Don't authenticate until code is verified
+          setIsAuthenticated(false);
         } else {
           console.log('✅ Direct authentication for student or verified admin');
           setIsAuthenticated(true);
@@ -112,7 +109,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Check localStorage for existing auth
     const savedUser = localStorage.getItem('userData');
     const savedRole = localStorage.getItem('userRole');
     if (savedUser) {
@@ -131,7 +127,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Persist Theme
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -140,7 +135,6 @@ const App: React.FC = () => {
     }
   }, [darkMode]);
 
-  // Load History (Mock persistence)
   useEffect(() => {
     const saved = localStorage.getItem('interview_history');
     if (saved) {
@@ -155,7 +149,6 @@ const App: React.FC = () => {
     localStorage.setItem('interview_history', JSON.stringify(newHistory));
   };
 
-  // --- Actions ---
 
   const handleGenerate = async (domain: Domain, difficulty: Difficulty, type: QuestionType) => {
     setIsLoading(true);

@@ -686,8 +686,83 @@ export const server = http.createServer(async (req, res) => {
     return;
   }
 
-  res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify({ error: 'Not Found' }));
+  // Student: Generate AI Question
+  if (pathname === '/api/student/generate-ai-question' && req.method === 'POST') {
+    const user = getUserInfo(req);
+
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', async () => {
+      try {
+        const { domain, difficulty, type } = JSON.parse(body);
+
+        if (!domain || !difficulty || !type) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Domain, difficulty, and type are required' }));
+          return;
+        }
+
+        // Call the generate API endpoint
+        const generateUrl = `http://localhost:${PORT}/api/generate`;
+        const generateResponse = await fetch(generateUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain, difficulty, type })
+        });
+
+        if (!generateResponse.ok) {
+          const errorText = await generateResponse.text();
+          throw new Error(`Question generation failed: ${errorText}`);
+        }
+
+        const generatedData = await generateResponse.json();
+
+        // Create question in database
+        const question = await prisma.questions.create({
+          data: {
+            id: crypto.randomUUID(),
+            domain,
+            difficulty,
+            type,
+            title: generatedData.title || 'Untitled Question',
+            prompt: generatedData.description || 'No description provided',
+            constraints: generatedData.constraints || [],
+            examples: generatedData.testCases || [],
+            starter_code: generatedData.codeStarter || '',
+            reference_solution: generatedData.correctSolution || null
+          }
+        });
+
+        // Auto-assign to student with source: 'ai'
+        const assignment = await prisma.question_assignments.create({
+          data: {
+            question_id: question.id,
+            student_email: user.email,
+            assigned_by: 'AI System',
+            assignment_type: 'practice',
+            source: 'ai'
+          }
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          question,
+          assignment,
+          message: 'AI question generated and assigned successfully!'
+        }));
+      } catch (error) {
+        console.error('Error generating AI question:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to generate AI question: ' + error.message }));
+      }
+    });
+    return;
+  }
+
+  // 404 for unknown routes
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Not found' }));
 });
 
 if (process.env.START_SERVER !== 'false') {
