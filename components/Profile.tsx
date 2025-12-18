@@ -1,233 +1,163 @@
 /**
  * Profile Component
- * Shows detailed activity history for both admins and students
+ * Displays user profile and stats
  */
 import React, { useState, useEffect } from 'react';
-import { CheckCircleIcon, ClockIcon, AwardIcon, BookIcon } from './icons';
+import { UserIcon, AwardIcon, ZapIcon, ActivityIcon, BrainIcon, ClockIcon, BookIcon, CheckCircleIcon } from './icons';
 
 interface ProfileProps {
     userEmail: string;
     userName: string;
-    userRole: 'student' | 'admin';
-}
-
-interface StudentStats {
-    totalAssigned: number;
-    totalCompleted: number;
-    averageScore: number;
-    completionRate: number;
-    recentAttempts: Array<{
-        questionTitle: string;
-        score: number;
-        completedAt: string;
-    }>;
-}
-
-interface AdminStats {
-    totalAssignments: number;
-    studentsManaged: number;
-    recentAssignments: Array<{
-        questionTitle: string;
-        studentEmail: string;
-        assignedAt: string;
-        assignmentType: string;
-    }>;
+    userRole: string;
 }
 
 const Profile: React.FC<ProfileProps> = ({ userEmail, userName, userRole }) => {
-    const [studentStats, setStudentStats] = useState<StudentStats | null>(null);
-    const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        totalAttempts: 0,
+        averageScore: 0,
+        streakDays: 12,
+        xp: 2450,
+        level: 1,
+        badges: [
+            { id: 1, name: 'First Steps', icon: <ZapIcon />, color: 'bg-indigo-500' },
+            { id: 2, name: 'Logic Master', icon: <BrainIcon />, color: 'bg-purple-500' },
+            { id: 3, name: 'Consistent Learner', icon: <ClockIcon />, color: 'bg-rose-500' }
+        ]
+    });
 
-    const API_URL = 'http://localhost:3001';
+    const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
     useEffect(() => {
-        fetchProfileData();
-    }, [userEmail, userRole]);
-
-    const fetchProfileData = async () => {
-        try {
-            if (userRole === 'student') {
-                const response = await fetch(`${API_URL}/api/student/profile`, {
+        const fetchStats = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/student/my-progress`, {
                     headers: {
                         'x-user-email': userEmail,
-                        'x-user-role': 'student'
+                        'x-user-role': userRole
                     }
                 });
                 const data = await response.json();
-                setStudentStats(data);
-            } else {
-                const response = await fetch(`${API_URL}/api/admin/profile`, {
-                    headers: {
-                        'x-user-email': userEmail,
-                        'x-user-role': 'admin'
-                    }
-                });
-                const data = await response.json();
-                setAdminStats(data);
+                setStats(prev => ({
+                    ...prev,
+                    totalAttempts: data.total || 0,
+                    averageScore: data.progress || 0
+                }));
+            } catch (error) {
+                console.error('Error fetching profile stats:', error);
             }
-        } catch (error) {
-            console.error('Error fetching profile:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            </div>
-        );
-    }
+        fetchStats();
+    }, [userEmail]);
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 text-white">
-                <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold">
-                        {userName.substring(0, 2).toUpperCase()}
+        <div className="space-y-10 max-w-5xl mx-auto">
+            {/* Header Profile Section */}
+            <div className="edu-card-3d p-10 bg-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+                
+                <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+                    <div className="relative">
+                        <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl transform rotate-3 hover:rotate-0 transition-transform">
+                            {userName.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 w-12 h-12 rounded-2xl bg-yellow-400 border-4 border-white flex items-center justify-center text-white shadow-lg animate-bounce">
+                            <AwardIcon className="w-6 h-6" />
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-3xl font-bold mb-1">{userName}</h1>
-                        <p className="text-indigo-100">{userEmail}</p>
-                        <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
-                            {userRole === 'admin' ? '👑 Administrator' : '📚 Student'}
-                        </span>
+
+                    <div className="text-center md:text-left flex-1">
+                        <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+                            <h2 className="text-4xl font-black text-slate-900 font-heading tracking-tight">{userName}</h2>
+                            <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-black uppercase tracking-widest border-2 border-indigo-200">
+                                {userRole} scholar
+                            </span>
+                        </div>
+                        <p className="text-slate-500 font-bold mb-6 flex items-center justify-center md:justify-start gap-2">
+                            <ActivityIcon className="w-5 h-5 text-indigo-400" />
+                            Active since December 2025
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 font-bold text-sm">
+                                <ZapIcon className="w-4 h-4 text-amber-500" />
+                                {stats.xp} XP
+                            </div>
+                            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 font-bold text-sm">
+                                <ActivityIcon className="w-4 h-4 text-rose-500" />
+                                {stats.streakDays} Day Streak
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="hidden md:block w-px h-24 bg-slate-100"></div>
+
+                    <div className="text-center">
+                        <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Scholar Level</p>
+                        <p className="text-6xl font-black text-indigo-600 font-heading leading-none">{stats.level}</p>
+                        <div className="mt-4 w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-indigo-600 w-3/4 rounded-full"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Student Profile */}
-            {userRole === 'student' && studentStats && (
-                <>
-                    {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-                            <div className="flex items-center gap-3 mb-2">
-                                <BookIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                                <p className="text-sm text-slate-600 dark:text-slate-400">Assigned</p>
-                            </div>
-                            <p className="text-3xl font-bold text-slate-900 dark:text-white">{studentStats.totalAssigned}</p>
-                        </div>
-
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-                            <div className="flex items-center gap-3 mb-2">
-                                <CheckCircleIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
-                                <p className="text-sm text-slate-600 dark:text-slate-400">Completed</p>
-                            </div>
-                            <p className="text-3xl font-bold text-slate-900 dark:text-white">{studentStats.totalCompleted}</p>
-                        </div>
-
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-                            <div className="flex items-center gap-3 mb-2">
-                                <AwardIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-                                <p className="text-sm text-slate-600 dark:text-slate-400">Avg Score</p>
-                            </div>
-                            <p className="text-3xl font-bold text-slate-900 dark:text-white">{studentStats.averageScore}%</p>
-                        </div>
-
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-                            <div className="flex items-center gap-3 mb-2">
-                                <ClockIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                                <p className="text-sm text-slate-600 dark:text-slate-400">Completion</p>
-                            </div>
-                            <p className="text-3xl font-bold text-slate-900 dark:text-white">{studentStats.completionRate}%</p>
-                        </div>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="edu-card-3d p-8 bg-white group">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                        <BookIcon className="w-8 h-8" />
                     </div>
+                    <h3 className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Challenges Solved</h3>
+                    <p className="text-4xl font-black text-slate-900 font-heading">{stats.totalAttempts}</p>
+                    <p className="text-emerald-600 text-sm font-bold mt-2">+3 this week</p>
+                </div>
 
-                    {/* Recent Attempts */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recent Attempts</h2>
-                        </div>
-                        <div className="p-6">
-                            {studentStats.recentAttempts.length === 0 ? (
-                                <p className="text-center text-slate-500 dark:text-slate-400 py-8">No attempts yet</p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {studentStats.recentAttempts.map((attempt, index) => (
-                                        <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                                            <div className="flex-1">
-                                                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{attempt.questionTitle}</h3>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">{formatDate(attempt.completedAt)}</p>
-                                            </div>
-                                            <div className={`px-4 py-2 rounded-lg font-bold ${attempt.score >= 80 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                                                    attempt.score >= 60 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                                                        'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                }`}>
-                                                {attempt.score}%
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                <div className="edu-card-3d p-8 bg-white group">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                        <CheckCircleIcon className="w-8 h-8" />
                     </div>
-                </>
-            )}
+                    <h3 className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Success Rate</h3>
+                    <p className="text-4xl font-black text-slate-900 font-heading">{stats.averageScore}%</p>
+                    <p className="text-slate-400 text-sm font-bold mt-2">Global Avg: 68%</p>
+                </div>
 
-            {/* Admin Profile */}
-            {userRole === 'admin' && adminStats && (
-                <>
-                    {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-                            <div className="flex items-center gap-3 mb-2">
-                                <BookIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                                <p className="text-sm text-slate-600 dark:text-slate-400">Total Assignments</p>
+                <div className="edu-card-3d p-8 bg-white group">
+                    <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                        <ZapIcon className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Focus Points</h3>
+                    <p className="text-4xl font-black text-slate-900 font-heading">Algorithms</p>
+                    <p className="text-indigo-600 text-sm font-bold mt-2">Data Structures (+12%)</p>
+                </div>
+            </div>
+
+            {/* Achievements Section */}
+            <div className="edu-card-3d p-10 bg-white">
+                <h3 className="text-2xl font-black text-slate-900 mb-8 font-heading flex items-center gap-4">
+                    <AwardIcon className="w-8 h-8 text-yellow-500" />
+                    Scholar Achievements
+                </h3>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    {stats.badges.map(badge => (
+                        <div key={badge.id} className="flex flex-col items-center text-center p-6 rounded-[32px] bg-slate-50 border-2 border-slate-100 hover:border-indigo-200 transition-all group">
+                            <div className={`w-20 h-20 rounded-3xl ${badge.color} text-white flex items-center justify-center mb-4 shadow-xl shadow-current/20 transform group-hover:rotate-12 transition-transform`}>
+                                {React.cloneElement(badge.icon as React.ReactElement, { className: 'w-10 h-10' })}
                             </div>
-                            <p className="text-3xl font-bold text-slate-900 dark:text-white">{adminStats.totalAssignments}</p>
+                            <p className="font-black text-slate-900 text-sm font-heading">{badge.name}</p>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1">Unlocked</p>
                         </div>
-
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
-                            <div className="flex items-center gap-3 mb-2">
-                                <CheckCircleIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                                <p className="text-sm text-slate-600 dark:text-slate-400">Students Managed</p>
-                            </div>
-                            <p className="text-3xl font-bold text-slate-900 dark:text-white">{adminStats.studentsManaged}</p>
+                    ))}
+                    <div className="flex flex-col items-center justify-center text-center p-6 rounded-[32px] border-2 border-dashed border-slate-200 opacity-50 grayscale group hover:opacity-100 hover:grayscale-0 transition-all cursor-pointer">
+                        <div className="w-20 h-20 rounded-3xl bg-slate-200 flex items-center justify-center mb-4 group-hover:bg-amber-100 transition-colors">
+                            <AwardIcon className="w-10 h-10 text-slate-400 group-hover:text-amber-500" />
                         </div>
+                        <p className="font-bold text-slate-400 text-xs">Goal Hunter</p>
+                        <p className="text-slate-400 text-[10px] mt-1">Locked</p>
                     </div>
-
-                    {/* Recent Assignments */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Assignment History</h2>
-                        </div>
-                        <div className="p-6">
-                            {adminStats.recentAssignments.length === 0 ? (
-                                <p className="text-center text-slate-500 dark:text-slate-400 py-8">No assignments yet</p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {adminStats.recentAssignments.map((assignment, index) => (
-                                        <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                                            <div className="flex-1">
-                                                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{assignment.questionTitle}</h3>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                    Assigned to: <span className="font-medium">{assignment.studentEmail}</span>
-                                                </p>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">{formatDate(assignment.assignedAt)}</p>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-lg text-sm font-medium ${assignment.assignmentType === 'test'
-                                                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                                }`}>
-                                                {assignment.assignmentType === 'test' ? '🎯 Test' : '📝 Practice'}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </>
-            )}
+                </div>
+            </div>
         </div>
     );
 };

@@ -1,109 +1,111 @@
-
 import React, { useState } from 'react';
 import { Difficulty, Domain, QuestionType } from '../types';
-import { BrainIcon, CodeIcon, CpuIcon } from './icons';
+import { BrainIcon, CodeIcon, ZapIcon, AwardIcon, BookIcon, ActivityIcon } from './icons';
 
-interface ConfigFormProps {
+interface PromptFormProps {
   onGenerate: (domain: Domain, difficulty: Difficulty, type: QuestionType) => void;
   isLoading: boolean;
 }
 
-const QuestionConfigurator: React.FC<ConfigFormProps> = ({ onGenerate, isLoading }) => {
+const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading }) => {
   const [domain, setDomain] = useState<Domain>(Domain.DSA);
   const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.MEDIUM);
-  const [type, setType] = useState<QuestionType>(QuestionType.CODING);
+  const [type, setType] = useState<QuestionType>(QuestionType.ALGORITHMIC);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onGenerate(domain, difficulty, type);
   };
 
-  const domainOptions = Object.values(Domain);
-  const difficultyOptions = Object.values(Difficulty);
-  const typeOptions = Object.values(QuestionType);
-
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
-          <BrainIcon className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Generate Question</h2>
-          <p className="text-slate-500 dark:text-slate-400">Configure your mock interview session</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Domain</label>
-            <select
-              value={domain}
-              onChange={(e) => setDomain(e.target.value as Domain)}
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all text-slate-900 dark:text-white"
-            >
-              {domainOptions.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
+    <form onSubmit={handleSubmit} className="edu-card-3d p-10 bg-white">
+      <div className="space-y-10">
+        {/* Domain Selection */}
+        <section>
+          <h3 className="text-xl font-black text-slate-900 mb-6 font-heading flex items-center gap-3">
+            <BookIcon className="w-6 h-6 text-indigo-600" />
+            1. Choose Your Subject
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              { id: Domain.DSA, label: 'Data Structures', icon: <CodeIcon />, desc: 'Arrays, Lists, Trees & More' },
+              { id: Domain.FRONTEND, label: 'Frontend Dev', icon: <ActivityIcon />, desc: 'React, CSS & Performance' },
+              { id: Domain.BACKEND, label: 'Backend Systems', icon: <ZapIcon />, desc: 'APIs, DBs & Scalability' },
+              { id: Domain.SYSTEM_DESIGN, label: 'System Design', icon: <BrainIcon />, desc: 'Architecture & Trade-offs' },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setDomain(item.id)}
+                className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-all text-left group ${
+                  domain === item.id 
+                  ? 'bg-indigo-50 border-indigo-600 ring-4 ring-indigo-50' 
+                  : 'bg-white border-slate-100 hover:border-indigo-200'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${
+                  domain === item.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                }`}>
+                  {item.icon}
+                </div>
+                <div>
+                  <p className={`font-black text-lg ${domain === item.id ? 'text-indigo-900' : 'text-slate-700'}`}>{item.label}</p>
+                  <p className="text-sm text-slate-500 font-medium">{item.desc}</p>
+                </div>
+              </button>
+            ))}
           </div>
+        </section>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Difficulty</label>
-            <div className="grid grid-cols-3 gap-2">
-              {difficultyOptions.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setDifficulty(opt)}
-                  className={`px-2 py-3 text-sm font-medium rounded-xl transition-all border ${
-                    difficulty === opt
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
+        {/* Difficulty Selection */}
+        <section>
+          <h3 className="text-xl font-black text-slate-900 mb-6 font-heading flex items-center gap-3">
+            <AwardIcon className="w-6 h-6 text-amber-500" />
+            2. Set Your Challenge Level
+          </h3>
+          <div className="flex flex-wrap gap-4">
+            {[
+              { id: Difficulty.EASY, label: 'Apprentice', color: 'emerald' },
+              { id: Difficulty.MEDIUM, label: 'Scholar', color: 'indigo' },
+              { id: Difficulty.HARD, label: 'Master', color: 'rose' },
+            ].map((level) => (
+              <button
+                key={level.id}
+                type="button"
+                onClick={() => setDifficulty(level.id)}
+                className={`flex-1 min-w-[140px] py-4 rounded-2xl border-2 font-black uppercase tracking-widest text-xs transition-all ${
+                  difficulty === level.id 
+                  ? `bg-${level.color}-50 border-${level.color}-600 text-${level.color}-700 ring-4 ring-${level.color}-50` 
+                  : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                {level.label}
+              </button>
+            ))}
           </div>
-        </div>
+        </section>
 
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Question Type</label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {typeOptions.map((opt) => {
-               const Icon = opt === QuestionType.CODING ? CodeIcon : opt === QuestionType.SYSTEM_DESIGN ? CpuIcon : BrainIcon;
-               return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setType(opt)}
-                  className={`flex items-center justify-center gap-2 p-4 rounded-xl border transition-all ${
-                    type === opt
-                      ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-600 text-indigo-700 dark:text-indigo-400'
-                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${type === opt ? 'text-indigo-600 dark:text-indigo-400' : ''}`} />
-                  <span className="font-medium">{opt}</span>
-                </button>
-               );
-            })}
-          </div>
-        </div>
-
+        {/* Action Button */}
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full btn-edu btn-edu-primary py-6 text-xl shadow-indigo-200"
         >
-          {isLoading ? 'Generating...' : 'Start Interview Session'}
+          {isLoading ? (
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              Preparing Lesson...
+            </div>
+          ) : (
+            <>
+              Generate My Challenge
+              <ZapIcon className="w-6 h-6 fill-current" />
+            </>
+          )}
         </button>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 };
 
-export default QuestionConfigurator;
+export default PromptForm;

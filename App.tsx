@@ -36,12 +36,15 @@ import {
   SunIcon,
   UserIcon,
   XIcon,
-  ZapIcon
+  ZapIcon,
+  ActivityIcon,
+  BrainIcon,
+  ClockIcon
 } from './components/icons';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // User State
@@ -61,12 +64,9 @@ const App: React.FC = () => {
   const [currentEvaluation, setCurrentEvaluation] = useState<Evaluation | null>(null);
   const [history, setHistory] = useState<Attempt[]>([]);
 
-  // Auth backend URL - configurable via env or default
   const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
 
-  // Check authentication status on mount and handle OAuth callback
   useEffect(() => {
-    // First, check for OAuth callback in URL params
     const urlParams = new URLSearchParams(window.location.search);
     const authenticated = urlParams.get('authenticated');
     const userParam = urlParams.get('user');
@@ -75,7 +75,6 @@ const App: React.FC = () => {
     if (error) {
       console.error('OAuth error:', error);
       alert(`Authentication failed: ${error}`);
-      // Clean URL
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
@@ -83,8 +82,6 @@ const App: React.FC = () => {
     if (authenticated === 'true' && userParam) {
       try {
         const user = JSON.parse(decodeURIComponent(userParam));
-        console.log('🔐 OAuth callback received:', { role: user.role, needsAdminCode: user.needsAdminCode, email: user.email });
-
         setUserName(user.name || 'User');
         setUserEmail(user.email || '');
         setUserId(user.id || null);
@@ -96,11 +93,9 @@ const App: React.FC = () => {
         window.history.replaceState({}, document.title, window.location.pathname);
 
         if (user.needsAdminCode && user.role === 'admin') {
-          console.log('✅ Showing admin code modal for:', user.email);
           setShowAdminCodeModal(true);
           setIsAuthenticated(false);
         } else {
-          console.log('✅ Direct authentication for student or verified admin');
           setIsAuthenticated(true);
           setCurrentView(AppView.DASHBOARD);
         }
@@ -184,13 +179,10 @@ const App: React.FC = () => {
         timeSpentSeconds: 0
       };
 
-      // Save to local history
       saveHistory([attempt, ...history]);
 
-      // Save to database if user is authenticated (optional - backend may not have this endpoint)
       if (isAuthenticated && userId && currentQuestion.id) {
         try {
-          // Try to save to main backend if available
           const mainBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
           await fetch(`${mainBackendUrl}/api/attempts`, {
             method: 'POST',
@@ -210,10 +202,8 @@ const App: React.FC = () => {
               }
             })
           });
-          console.log('✅ Attempt saved to database');
         } catch (dbError) {
           console.error('Failed to save to database:', dbError);
-          // Continue anyway - local history is saved
         }
       }
 
@@ -237,53 +227,39 @@ const App: React.FC = () => {
     setCurrentView(AppView.GENERATE);
   };
 
-
-  const StatCard: React.FC<{ title: string; value: string | number; icon: React.ReactNode; color: string }> = ({ title, value, icon, color }) => (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-      <div className={`p-4 rounded-xl ${color} bg-opacity-20`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{value}</h3>
-      </div>
-    </div>
-  );
-
   // --- Views ---
 
   const renderSidebar = () => (
     <>
-      {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-sm transition-all"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         fixed top-0 left-0 z-50 h-full w-72 sidebar-edu transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        shadow-xl lg:shadow-none
       `}>
-        <div className="p-6 flex items-center justify-between border-b-2 border-slate-100">
-          <div className="flex items-center gap-2 font-bold text-xl text-blue-600">
-            <ZapIcon className="w-6 h-6 fill-current" />
-            <span>InterviewAI</span>
+        <div className="p-8 flex items-center justify-between border-b-2 border-slate-50">
+          <div className="flex items-center gap-3 font-bold text-2xl text-gradient-edu">
+            <ZapIcon className="w-8 h-8 text-indigo-600 fill-indigo-600/20" />
+            <span className="font-heading">EduCoach AI</span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-600 transition-colors">
-            <XIcon />
+            <XIcon className="w-6 h-6" />
           </button>
         </div>
 
 
-        <nav className="px-4 space-y-2 mt-4">
+        <nav className="px-6 space-y-3 mt-8">
           {[
-            { id: AppView.DASHBOARD, label: 'Dashboard', icon: DashboardIcon, roles: ['student', 'admin'] },
-            { id: AppView.GENERATE, label: 'Practice', icon: CodeIcon, roles: ['student'] },
-            { id: AppView.HISTORY, label: 'History', icon: HistoryIcon, roles: ['student'] },
-            { id: AppView.PROFILE, label: 'Profile', icon: UserIcon, roles: ['student', 'admin'] },
+            { id: AppView.DASHBOARD, label: 'Learning Path', icon: DashboardIcon, roles: ['student', 'admin'] },
+            { id: AppView.GENERATE, label: 'Free Practice', icon: BrainIcon, roles: ['student'] },
+            { id: AppView.HISTORY, label: 'My Journey', icon: ActivityIcon, roles: ['student'] },
+            { id: AppView.PROFILE, label: 'Scholar Profile', icon: UserIcon, roles: ['student', 'admin'] },
           ]
             .filter(item => item.roles.includes(userRole))
             .map((item) => (
@@ -293,140 +269,195 @@ const App: React.FC = () => {
                   setCurrentView(item.id);
                   setIsSidebarOpen(false);
                 }}
-                className={`nav-item-edu w-full flex items-center gap-3 ${currentView === item.id ? 'active' : ''}`}
+                className={`nav-item-edu w-full flex items-center gap-4 ${currentView === item.id ? 'active' : ''}`}
               >
-                <item.icon className="w-5 h-5" />
-                {item.label}
+                <item.icon className={`w-5 h-5 ${currentView === item.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                <span>{item.label}</span>
               </button>
             ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t-2 border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-md">
+        <div className="absolute bottom-0 left-0 right-0 p-8 border-t-2 border-slate-50 bg-white/50 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30 transform hover:rotate-6 transition-transform">
                 {userName.substring(0, 2).toUpperCase()}
               </div>
               <div className="text-sm">
-                <p className="font-bold text-slate-900">{userName}</p>
-                <p className="text-slate-500 text-xs">{userEmail || 'Free Plan'}</p>
+                <p className="font-bold text-slate-900 leading-none mb-1">{userName}</p>
+                <p className="text-indigo-600 text-xs font-semibold px-2 py-0.5 bg-indigo-50 rounded-full inline-block">Level 1 Scholar</p>
               </div>
             </div>
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all"
-            >
-              {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
-            </button>
           </div>
-          <button
-            onClick={async () => {
-              try {
-                // Clear local storage
-                localStorage.removeItem('userData');
-                localStorage.removeItem('userRole');
-                setIsAuthenticated(false);
-                setUserName('User');
-                setUserEmail('');
-                setUserId(null);
-                setCurrentView(AppView.LANDING);
-              } catch (error) {
-                console.error('Logout failed:', error);
-              }
-            }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border-2 border-red-200 hover:border-red-300 transition-all font-medium transform hover:scale-105 active:scale-95"
-          >
-            <LogoutIcon className="w-4 h-4" />
-            Logout
-          </button>
+          <div className="flex gap-2">
+             <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="flex-1 p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition-all border border-slate-200 flex items-center justify-center"
+              >
+                {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={async () => {
+                  localStorage.removeItem('userData');
+                  localStorage.removeItem('userRole');
+                  setIsAuthenticated(false);
+                  setUserName('User');
+                  setUserEmail('');
+                  setUserId(null);
+                  setCurrentView(AppView.LANDING);
+                }}
+                className="flex-[2] flex items-center justify-center gap-2 p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-100 transition-all font-bold text-sm"
+              >
+                <LogoutIcon className="w-4 h-4" />
+                Logout
+              </button>
+          </div>
         </div>
       </aside>
     </>
   );
 
   const renderLanding = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col">
-      <header className="py-6 px-8 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2 font-bold text-2xl text-blue-600">
-          <ZapIcon className="w-8 h-8 fill-current" />
-          <span>InterviewAI</span>
+    <div className="min-h-screen bg-edu-mesh flex flex-col">
+      <header className="py-8 px-8 flex justify-between items-center max-w-7xl mx-auto w-full relative z-10">
+        <div className="flex items-center gap-3 font-bold text-3xl text-gradient-edu">
+          <ZapIcon className="w-10 h-10 text-indigo-600 fill-indigo-600/20" />
+          <span className="font-heading tracking-tight">EduCoach AI</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="p-3 rounded-xl bg-white border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-all"
+            className="p-3 rounded-2xl glass-edu border border-slate-200 text-slate-600 hover:text-indigo-600 transition-all shadow-sm"
           >
             {darkMode ? <SunIcon /> : <MoonIcon />}
           </button>
-          {isAuthenticated && (
+          {isAuthenticated ? (
             <button
               onClick={() => setCurrentView(AppView.DASHBOARD)}
-              className="btn-edu-primary"
+              className="btn-edu btn-edu-primary shadow-xl"
             >
-              Start Learning
+              Back to Learning
+            </button>
+          ) : (
+             <button
+              onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google`}
+              className="btn-edu btn-edu-primary shadow-xl"
+            >
+              Start Free Today
             </button>
           )}
         </div>
       </header>
 
-      <main className="flex-grow flex flex-col items-center justify-center text-center px-4 py-20">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 font-medium text-sm mb-8 animate-bounce-gentle border-2 border-blue-200">
-          <AwardIcon className="w-4 h-4" />
-          <span>Trusted by 10,000+ Students</span>
+      <main className="flex-grow flex flex-col items-center justify-center text-center px-6 py-12 relative z-10 overflow-hidden">
+        {/* Abstract Background Shapes */}
+        <div className="absolute top-1/4 -left-20 w-64 h-64 bg-indigo-400/10 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-rose-400/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
+
+        <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white/80 border-2 border-indigo-100 text-indigo-700 font-bold text-sm mb-10 shadow-sm animate-bounce-gentle">
+          <AwardIcon className="w-5 h-5 text-indigo-500" />
+          <span>The #1 AI Tutor for Technical Interviews</span>
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-8 tracking-tight max-w-4xl leading-tight animate-fade-in-up">
-          Master Technical Interviews with <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">AI-Powered Practice</span>
+        <h1 className="text-6xl md:text-8xl font-bold text-slate-900 mb-10 tracking-tight max-w-5xl leading-[1.1] font-heading">
+          Unlock Your Future with <span className="text-gradient-edu relative">
+            Intelligent Practice
+            <svg className="absolute -bottom-2 left-0 w-full h-3 text-indigo-200" preserveAspectRatio="none" viewBox="0 0 100 10">
+              <path d="M0 5 Q 25 0, 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="4" />
+            </svg>
+          </span>
         </h1>
 
-        <p className="text-xl text-slate-600 max-w-2xl mb-12 leading-relaxed">
-          Practice coding questions, get instant AI feedback, and track your progress. Perfect for students preparing for tech interviews!
+        <p className="text-2xl text-slate-600 max-w-3xl mb-14 leading-relaxed font-light">
+          Experience personalized learning with real-time AI mentoring. Perfect for students who want to master data structures and algorithms through guided practice.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-20">
+        <div className="flex flex-col sm:flex-row gap-6 mb-24">
           <button
-            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google`}
-            className="px-8 py-4 bg-white border-2 border-slate-200 hover:border-blue-400 text-slate-900 text-lg font-bold rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
+            className="px-10 py-5 bg-indigo-600 text-white text-xl font-black rounded-3xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-4 shadow-2xl shadow-indigo-500/40 transform hover:scale-105 active:scale-95"
           >
-            <svg className="w-6 h-6" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-            </svg>
-            Sign in with Google
+            Join as a Student
+            <PlayIcon className="w-6 h-6" />
+          </button>
+          <button
+            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=admin`}
+            className="px-10 py-5 bg-white text-slate-900 text-xl font-black rounded-3xl border-2 border-slate-200 hover:border-indigo-600 transition-all flex items-center justify-center gap-4 shadow-xl transform hover:scale-105 active:scale-95"
+          >
+            I'm an Educator
+            <UserIcon className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full text-left">
+        {/* Feature Grid */}
+        <div className="edu-grid max-w-6xl w-full text-left relative z-10 px-4">
           {[
-            { icon: <CodeIcon className="w-6 h-6" />, color: "icon-container-blue", title: "Smart Practice", desc: "AI-generated questions tailored to your skill level and learning goals." },
-            { icon: <PlayIcon className="w-6 h-6" />, color: "icon-container-purple", title: "Instant Feedback", desc: "Get detailed explanations and suggestions to improve your solutions." },
-            { icon: <BookIcon className="w-6 h-6" />, color: "icon-container-green", title: "Track Progress", desc: "Monitor your improvement with detailed analytics and insights." }
+            { icon: <BrainIcon className="w-8 h-8" />, color: "bg-indigo-500", title: "Adaptive AI Engine", desc: "Questions that evolve with your skill level, ensuring you're always challenged but never overwhelmed." },
+            { icon: <ActivityIcon className="w-8 h-8" />, color: "bg-rose-500", title: "Visual Analytics", desc: "Deep insights into your problem-solving patterns with beautiful, easy-to-understand progress charts." },
+            { icon: <LightbulbIcon className="w-8 h-8" />, color: "bg-emerald-500", title: "Contextual Hints", desc: "Never get stuck again. Our AI provides gentle nudges that help you discover the solution yourself." }
           ].map((f, i) => (
-            <div key={i} className="feature-card-edu animate-fade-in-up" style={{ animationDelay: `${i * 0.1}s` }}>
-              <div className={`icon-container-edu ${f.color} mb-6`}>
+            <div key={i} className="edu-card-3d p-10 group" style={{ animationDelay: `${i * 0.1}s` }}>
+              <div className={`${f.color} w-16 h-16 rounded-2xl flex items-center justify-center text-white mb-8 shadow-lg shadow-current/20 group-hover:rotate-12 transition-transform`}>
                 {f.icon}
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{f.title}</h3>
-              <p className="text-slate-600">{f.desc}</p>
+              <h3 className="text-2xl font-bold text-slate-900 mb-4 font-heading">{f.title}</h3>
+              <p className="text-slate-600 text-lg leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
       </main>
+
+      <footer className="py-12 border-t border-slate-100 bg-white/50 backdrop-blur-md relative z-10">
+        <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-3 font-bold text-2xl text-slate-400">
+            <ZapIcon className="w-6 h-6" />
+            <span>EduCoach AI</span>
+          </div>
+          <div className="flex gap-10 text-slate-500 font-semibold">
+            <a href="#" className="hover:text-indigo-600 transition-colors">Curriculum</a>
+            <a href="#" className="hover:text-indigo-600 transition-colors">Pricing</a>
+            <a href="#" className="hover:text-indigo-600 transition-colors">Resources</a>
+          </div>
+          <p className="text-slate-400 text-sm">© 2025 EduCoach. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 
   const renderDashboard = () => {
-    // Show admin dashboard for admins
     if (userRole === 'admin') {
       return <AdminDashboard userEmail={userEmail} />;
     }
 
-    // Show student assigned questions for students
     return (
-      <div className="space-y-8 animate-fade-in">
+      <div className="space-y-12 animate-fade-in pb-12">
+        {/* Welcome Banner */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 rounded-[32px] p-12 text-white shadow-2xl shadow-indigo-500/20">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+            <div className="relative z-10">
+                <h2 className="text-5xl font-black mb-4 font-heading">Welcome back, {userName.split(' ')[0]}! 👋</h2>
+                <p className="text-xl text-indigo-100 max-w-xl leading-relaxed mb-10">
+                    You've completed 85% of your weekly goal. Solve 2 more problems to hit your streak!
+                </p>
+                <div className="flex flex-wrap gap-8">
+                    <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/20">
+                        <AwardIcon className="w-8 h-8 text-yellow-300" />
+                        <div>
+                            <p className="text-xs font-bold text-indigo-200 uppercase tracking-wider">Current Streak</p>
+                            <p className="text-2xl font-black">12 Days</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/20">
+                        <ZapIcon className="w-8 h-8 text-cyan-300" />
+                        <div>
+                            <p className="text-xs font-bold text-indigo-200 uppercase tracking-wider">Experience</p>
+                            <p className="text-2xl font-black">2,450 XP</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <StudentAssignedQuestions
           userEmail={userEmail}
           onStartQuestion={(question) => {
@@ -441,60 +472,96 @@ const App: React.FC = () => {
   const renderAttempt = () => {
     if (!currentQuestion) return null;
     return (
-      <div className="h-[calc(100vh-2rem)] flex flex-col md:flex-row gap-6">
+      <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-8">
         {/* Left: Question Panel */}
-        <div className="w-full md:w-1/3 glass-card flex flex-col overflow-hidden shadow-2xl">
-          <div className="p-6 border-b border-white/10 bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
-            <div className="flex items-center gap-2 mb-4">
-              <span className={`badge ${currentQuestion.difficulty === Difficulty.HARD ? 'badge-error' :
-                currentQuestion.difficulty === Difficulty.MEDIUM ? 'badge-warning' : 'badge-success'
-                }`}>
-                {currentQuestion.difficulty}
-              </span>
-              <span className="text-slate-400 text-sm font-medium">{currentQuestion.domain}</span>
+        <div className="w-full md:w-5/12 edu-card-3d flex flex-col overflow-hidden shadow-2xl bg-white">
+          <div className="p-8 border-b-2 border-slate-50 bg-slate-50/50">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <span className={`px-4 py-1.5 rounded-xl font-black text-xs uppercase tracking-widest border-2 ${currentQuestion.difficulty === Difficulty.HARD ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                    currentQuestion.difficulty === Difficulty.MEDIUM ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                    }`}>
+                    {currentQuestion.difficulty}
+                </span>
+                <span className="text-slate-500 text-sm font-bold bg-white px-3 py-1 rounded-lg shadow-sm border border-slate-100">{currentQuestion.domain}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <ClockIcon className="w-4 h-4" />
+                <span className="text-sm font-bold">45m limit</span>
+              </div>
             </div>
-            <h2 className="text-2xl font-bold gradient-text">{currentQuestion.title}</h2>
+            <h2 className="text-3xl font-black text-slate-900 font-heading leading-tight">{currentQuestion.title}</h2>
           </div>
 
-          <div className="flex-grow p-6 overflow-y-auto prose dark:prose-invert max-w-none">
-            <h3 className="text-lg font-bold text-white">Description</h3>
-            <p className="whitespace-pre-wrap text-slate-300">{currentQuestion.description}</p>
+          <div className="flex-grow p-8 overflow-y-auto custom-scrollbar">
+            <div className="prose prose-slate max-w-none">
+                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <BookIcon className="w-6 h-6 text-indigo-600" />
+                    Problem Description
+                </h3>
+                <p className="whitespace-pre-wrap text-slate-600 text-lg leading-relaxed mb-10">{currentQuestion.description}</p>
 
-            {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
-              <>
-                <h4 className="font-bold mt-6 mb-2 text-white">Constraints</h4>
-                <ul className="list-disc pl-5 space-y-1 text-slate-300">
-                  {currentQuestion.constraints.map((c, i) => <li key={i}>{c}</li>)}
-                </ul>
-              </>
-            )}
+                {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
+                <div className="mb-10">
+                    <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <ZapIcon className="w-5 h-5 text-amber-500" />
+                        Constraints
+                    </h4>
+                    <ul className="grid grid-cols-1 gap-2">
+                    {currentQuestion.constraints.map((c, i) => (
+                        <li key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 flex-shrink-0"></span>
+                            {c}
+                        </li>
+                    ))}
+                    </ul>
+                </div>
+                )}
 
-            {currentQuestion.examples && currentQuestion.examples.length > 0 && (
-              <>
-                <h4 className="font-bold mt-6 mb-2 text-white">Examples</h4>
-                {currentQuestion.examples.map((example, i) => (
-                  <div key={i} className="mb-4 p-4 glass-card rounded-lg font-mono text-sm border border-indigo-500/30">
-                    <div className="mb-2"><span className="text-indigo-400 font-semibold">Input:</span> <span className="text-cyan-300">{example.input}</span></div>
-                    <div className="mb-2"><span className="text-indigo-400 font-semibold">Output:</span> <span className="text-green-300">{example.output}</span></div>
-                    {example.explanation && (
-                      <div className="mt-2 text-slate-400 text-xs border-t border-white/10 pt-2">
-                        <span className="text-purple-400 font-semibold">Explanation:</span> {example.explanation}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </>
-            )}
+                {currentQuestion.examples && currentQuestion.examples.length > 0 && (
+                <div className="mb-8">
+                    <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <CodeIcon className="w-5 h-5 text-indigo-500" />
+                        Interactive Examples
+                    </h4>
+                    <div className="space-y-4">
+                    {currentQuestion.examples.map((example, i) => (
+                        <div key={i} className="bg-slate-900 rounded-2xl p-6 font-mono text-sm overflow-hidden shadow-lg border border-slate-800">
+                            <div className="flex items-center gap-2 mb-4 pb-4 border-b border-white/5">
+                                <div className="w-3 h-3 rounded-full bg-indigo-500/20"></div>
+                                <span className="text-indigo-400 font-bold">Example {i + 1}</span>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex gap-4"><span className="text-slate-500 min-w-16">INPUT:</span> <span className="text-cyan-400">{example.input}</span></div>
+                                <div className="flex gap-4"><span className="text-slate-500 min-w-16">OUTPUT:</span> <span className="text-emerald-400">{example.output}</span></div>
+                                {example.explanation && (
+                                    <div className="mt-4 pt-4 border-t border-white/5 text-slate-400 italic">
+                                        <span className="text-purple-400 not-italic font-bold mr-2">LOGIC:</span> {example.explanation}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    </div>
+                </div>
+                )}
+            </div>
           </div>
 
-          <div className="p-4 border-t border-white/10 bg-gradient-to-br from-purple-500/10 to-pink-500/10">
-            <details className="group">
-              <summary className="flex items-center gap-2 cursor-pointer font-medium gradient-text hover:opacity-80 transition-opacity">
-                <LightbulbIcon className="w-4 h-4" /> Show Hints
+          <div className="p-6 border-t-2 border-slate-50 bg-white">
+            <details className="group bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+              <summary className="flex items-center justify-between cursor-pointer font-bold text-indigo-700 list-none">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                        <LightbulbIcon className="w-5 h-5" />
+                    </div>
+                    Need a Hint?
+                </div>
+                <span className="group-open:rotate-180 transition-transform">▼</span>
               </summary>
-              <div className="mt-4 space-y-2 pl-4 border-l-2 border-gradient-to-b from-indigo-500 to-purple-500">
+              <div className="mt-4 space-y-3 pl-11">
                 {currentQuestion.hints?.map((hint, i) => (
-                  <p key={i} className="text-sm text-slate-300 italic">{hint}</p>
+                  <p key={i} className="text-indigo-600/80 italic font-medium relative py-2 border-l-2 border-indigo-200 pl-4">{hint}</p>
                 ))}
               </div>
             </details>
@@ -502,38 +569,70 @@ const App: React.FC = () => {
         </div>
 
         {/* Right: Editor Panel */}
-        <div className="w-full md:w-2/3 flex flex-col gap-4">
-          <div className="flex-grow code-editor shadow-2xl flex flex-col overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-900 to-slate-800 border-b border-indigo-500/30">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
+        <div className="w-full md:w-7/12 flex flex-col gap-6">
+          <div className="flex-grow edu-card-3d shadow-2xl flex flex-col overflow-hidden bg-slate-900 border-slate-800 group focus-within:border-indigo-500/50 transition-colors">
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-800/50 border-b border-white/5">
+              <div className="flex items-center gap-4">
+                <div className="flex gap-2">
+                  <div className="w-3.5 h-3.5 rounded-full bg-rose-500/80"></div>
+                  <div className="w-3.5 h-3.5 rounded-full bg-amber-500/80"></div>
+                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/80"></div>
                 </div>
-                <span className="ml-2 text-xs font-mono text-indigo-300 font-semibold">solution.js</span>
+                <div className="h-6 w-px bg-white/10 mx-2"></div>
+                <span className="text-xs font-black text-indigo-300 tracking-widest uppercase">solution.js</span>
               </div>
-              <div className="badge badge-info text-xs">JavaScript</div>
+              <div className="px-3 py-1 rounded-lg bg-white/5 text-slate-400 text-xs font-bold border border-white/10">JavaScript v18</div>
             </div>
-            <textarea
-              value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
-              className="flex-grow w-full p-6 bg-transparent text-slate-200 font-mono text-sm resize-none focus:outline-none leading-relaxed"
-              spellCheck="false"
-              placeholder="// Start coding here...
-// Your solution will be evaluated against test cases"
-            />
+            <div className="flex-grow relative">
+                <div className="absolute top-0 left-0 w-12 h-full bg-slate-800/30 border-r border-white/5 flex flex-col items-center py-6 text-slate-600 font-mono text-xs select-none">
+                    {Array.from({length: 40}).map((_, i) => <div key={i} className="h-6 leading-6">{i + 1}</div>)}
+                </div>
+                <textarea
+                  value={userAnswer}
+                  onChange={(e) => setUserAnswer(e.target.value)}
+                  className="w-full h-full pl-16 pr-8 py-6 bg-transparent text-indigo-50 font-mono text-[15px] resize-none focus:outline-none leading-6 caret-indigo-400"
+                  spellCheck="false"
+                  placeholder="/** 
+ * Write your algorithm here.
+ * The AI mentor will evaluate your logic and complexity.
+ */"
+                />
+            </div>
           </div>
 
-          <div className="flex justify-end gap-4">
-            <button
-              onClick={handleSubmitAttempt}
-              disabled={isLoading}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 animate-pulse-glow"
-            >
-              {isLoading ? 'Evaluating...' : 'Submit Solution'}
-              <PlayIcon className="w-4 h-4" />
-            </button>
+          <div className="flex justify-between items-center bg-white p-4 rounded-[24px] border-2 border-slate-50 shadow-lg">
+            <div className="flex items-center gap-4 text-slate-400 px-4">
+                <div className="flex -space-x-2">
+                    <div className="w-8 h-8 rounded-full border-2 border-white bg-indigo-500 flex items-center justify-center text-[10px] text-white font-bold">JS</div>
+                    <div className="w-8 h-8 rounded-full border-2 border-white bg-rose-500 flex items-center justify-center text-[10px] text-white font-bold">AI</div>
+                </div>
+                <span className="text-sm font-bold">Auto-save enabled</span>
+            </div>
+            <div className="flex gap-4">
+                 <button
+                    onClick={() => setCurrentView(AppView.DASHBOARD)}
+                    className="px-6 py-3 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                  >
+                    Discard
+                  </button>
+                <button
+                  onClick={handleSubmitAttempt}
+                  disabled={isLoading}
+                  className="btn-edu btn-edu-primary min-w-[200px]"
+                >
+                  {isLoading ? (
+                      <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Mentoring...
+                      </div>
+                  ) : (
+                      <>
+                        Submit Solution
+                        <PlayIcon className="w-5 h-5" />
+                      </>
+                  )}
+                </button>
+            </div>
           </div>
         </div>
       </div>
@@ -542,35 +641,55 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (isLoading && currentView === AppView.GENERATE) {
-      return <LoadingIndicator message="Creating your interview session..." />;
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="w-32 h-32 bg-indigo-50 rounded-full flex items-center justify-center mb-8 animate-pulse">
+                <BrainIcon className="w-16 h-16 text-indigo-600 animate-float" />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 mb-2 font-heading">Generating Challenge</h2>
+            <p className="text-slate-500 font-medium">Our AI is hand-crafting a problem for your skill level...</p>
+        </div>
+      );
     }
     if (isLoading && currentView === AppView.ATTEMPT) {
-      return <LoadingIndicator message="Evaluating your solution..." />;
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="w-32 h-32 bg-emerald-50 rounded-full flex items-center justify-center mb-8">
+                <ActivityIcon className="w-16 h-16 text-emerald-600 animate-spin" style={{ animationDuration: '3s' }} />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 mb-2 font-heading">Analyzing Solution</h2>
+            <p className="text-slate-500 font-medium">Your AI mentor is reviewing your code logic...</p>
+        </div>
+      );
     }
 
     switch (currentView) {
       case AppView.DASHBOARD: return renderDashboard();
       case AppView.GENERATE: return (
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <QuestionConfigurator onGenerate={handleGenerate} isLoading={isLoading} />
+        <div className="flex items-center justify-center min-h-[70vh]">
+          <div className="w-full max-w-2xl">
+              <div className="text-center mb-10">
+                  <h2 className="text-4xl font-black text-slate-900 mb-3 font-heading">Custom Practice</h2>
+                  <p className="text-lg text-slate-500 font-medium">Configure your session to focus on specific domains</p>
+              </div>
+              <QuestionConfigurator onGenerate={handleGenerate} isLoading={isLoading} />
+          </div>
         </div>
       );
       case AppView.ATTEMPT: return renderAttempt();
       case AppView.RESULT: return currentEvaluation && currentQuestion ? (
-        <div className="py-8">
+        <div className="py-4">
           <EvaluationDisplay evaluation={currentEvaluation} question={currentQuestion} onRetry={handleRetry} onNew={handleNewSession} />
         </div>
       ) : null;
-      case AppView.HISTORY: return renderDashboard(); // Fallback reuse for now
+      case AppView.HISTORY: return renderDashboard();
       case AppView.PROFILE: return <Profile userEmail={userEmail} userName={userName} userRole={userRole} />;
       default: return renderDashboard();
     }
   };
 
-  // Main Render
   return (
     <>
-      {/* Admin Code Modal - Rendered at root level */}
       <AdminCodeModal
         isOpen={showAdminCodeModal}
         userEmail={userEmail}
@@ -589,108 +708,86 @@ const App: React.FC = () => {
         }}
       />
 
-      {/* Show login page if not authenticated */}
-      {!isAuthenticated ? (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 flex items-center justify-center p-4">
-          <div className="max-w-2xl w-full animate-fade-in">
-            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-slate-200 dark:border-slate-800">
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4 shadow-lg animate-pulse">
-                  <CodeIcon className="w-8 h-8 text-white" />
-                </div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-                  AI Interview Coach
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400">
-                  Master your technical interviews with AI precision
-                </p>
-              </div>
-
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 text-center">
-                  Choose your role to continue
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Student Login */}
-                  <button
-                    onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
-                    className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-2xl p-6 text-left transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
-                  >
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                          <BookIcon className="w-6 h-6 text-white" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">Student</h3>
-                      </div>
-                      <p className="text-blue-100 text-sm mb-4">
-                        Practice coding questions and improve your interview skills
-                      </p>
-                      <div className="flex items-center gap-2 text-white text-sm font-medium">
-                        <svg className="w-5 h-5" viewBox="0 0 24 24">
-                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                        </svg>
-                        Sign in with Google
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/10 to-blue-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                  </button>
-
-                  {/* Administrator Login */}
-                  <button
-                    onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=admin`}
-                    className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-2xl p-6 text-left transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
-                  >
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                          <UserIcon className="w-6 h-6 text-white" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">Administrator</h3>
-                      </div>
-                      <p className="text-purple-100 text-sm mb-4">
-                        Manage users, questions, and system settings
-                      </p>
-                      <div className="flex items-center gap-2 text-white text-sm font-medium">
-                        <svg className="w-5 h-5" viewBox="0 0 24 24">
-                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                        </svg>
-                        Sign in with Google + Code
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-400/0 via-white/10 to-purple-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-                Secure authentication powered by Google
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : currentView === AppView.LANDING ? (
+      {!isAuthenticated && currentView === AppView.LANDING ? (
         renderLanding()
+      ) : !isAuthenticated ? (
+         <div className="min-h-screen bg-edu-mesh flex items-center justify-center p-6">
+            <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div className="text-left hidden md:block">
+                    <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center text-white mb-8 shadow-2xl shadow-indigo-500/40">
+                        <ZapIcon className="w-10 h-10" />
+                    </div>
+                    <h1 className="text-5xl font-black text-slate-900 mb-6 font-heading leading-tight">Your AI Mentor <br/><span className="text-indigo-600">Awaits.</span></h1>
+                    <p className="text-xl text-slate-600 leading-relaxed mb-8">Join thousands of students mastering their craft with EduCoach AI.</p>
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-4 text-slate-700 font-bold">
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">✓</div>
+                            Personalized Learning Paths
+                        </div>
+                        <div className="flex items-center gap-4 text-slate-700 font-bold">
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">✓</div>
+                            Real-time AI Feedback
+                        </div>
+                    </div>
+                </div>
+
+                <div className="edu-card-3d p-10 bg-white/80 backdrop-blur-md">
+                    <div className="text-center mb-10">
+                        <h2 className="text-3xl font-black text-slate-900 mb-2 font-heading">Start Learning</h2>
+                        <p className="text-slate-500 font-medium">Welcome to the future of education</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <button
+                            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
+                            className="w-full group flex items-center gap-4 p-6 rounded-2xl bg-white border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 transition-all shadow-sm"
+                        >
+                            <div className="w-14 h-14 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <BookIcon className="w-8 h-8" />
+                            </div>
+                            <div className="text-left">
+                                <p className="font-black text-slate-900 text-lg">Continue as Student</p>
+                                <p className="text-sm text-slate-500 font-medium">Practice & track progress</p>
+                            </div>
+                        </button>
+
+                        <button
+                            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=admin`}
+                            className="w-full group flex items-center gap-4 p-6 rounded-2xl bg-white border-2 border-slate-100 hover:border-purple-600 hover:bg-purple-50 transition-all shadow-sm"
+                        >
+                            <div className="w-14 h-14 rounded-xl bg-purple-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <UserIcon className="w-8 h-8" />
+                            </div>
+                            <div className="text-left">
+                                <p className="font-black text-slate-900 text-lg">Continue as Educator</p>
+                                <p className="text-sm text-slate-500 font-medium">Manage & assign tasks</p>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div className="mt-10 pt-8 border-t border-slate-100 text-center">
+                        <p className="text-sm text-slate-400 font-bold">Secure Google Authentication</p>
+                    </div>
+                </div>
+            </div>
+         </div>
       ) : (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 transition-colors duration-300 flex">
+        <div className="min-h-screen bg-slate-50 transition-colors duration-300 flex">
           {renderSidebar()}
 
           <div className="flex-1 lg:ml-72 flex flex-col min-h-screen">
-            <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-lg border-b-2 border-slate-100 px-6 py-4 flex justify-between items-center lg:hidden shadow-sm">
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:text-blue-600 transition-colors">
-                <MenuIcon />
+            <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b-2 border-slate-50 px-8 py-6 flex justify-between items-center lg:hidden shadow-sm">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+                <MenuIcon className="w-7 h-7" />
               </button>
-              <span className="font-bold text-lg text-blue-600">InterviewAI</span>
-              <div className="w-8"></div> {/* Spacer */}
+              <div className="flex items-center gap-2 font-black text-xl text-indigo-600 font-heading">
+                <ZapIcon className="w-6 h-6 fill-current" />
+                <span>EduCoach</span>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 shadow-md"></div>
             </header>
 
-            <main className="flex-grow p-6 lg:p-8 overflow-auto">
+            <main className="flex-grow p-8 lg:p-12 overflow-auto max-w-7xl mx-auto w-full">
               {renderContent()}
             </main>
           </div>

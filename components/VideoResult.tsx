@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Evaluation, Question } from '../types';
-import { AwardIcon, CheckCircleIcon, CodeIcon, RefreshIcon, XCircleIcon } from './icons';
+import { AwardIcon, CheckCircleIcon, CodeIcon, RefreshIcon, XCircleIcon, BrainIcon, ZapIcon, ActivityIcon } from './icons';
 
 interface EvaluationDisplayProps {
   evaluation: Evaluation;
@@ -14,92 +13,117 @@ const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({ evaluation, quest
   const isPassing = evaluation.score >= 70;
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      {/* Score Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl text-center relative overflow-hidden">
-        <div className={`absolute top-0 left-0 w-full h-2 ${isPassing ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+    <div className="w-full max-w-5xl mx-auto space-y-10 animate-fade-in pb-12">
+      {/* Performance Summary Card */}
+      <div className="edu-card-3d p-10 bg-white relative overflow-hidden text-center">
+        <div className={`absolute top-0 left-0 w-full h-3 ${isPassing ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
+        
+        <div className="relative z-10">
+          <div className={`inline-flex items-center justify-center w-24 h-24 rounded-[32px] mb-8 shadow-2xl transform rotate-3 ${isPassing ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+            {isPassing ? (
+              <AwardIcon className="w-12 h-12" />
+            ) : (
+              <RefreshIcon className="w-12 h-12" />
+            )}
+          </div>
 
-        <div className="inline-flex items-center justify-center p-4 rounded-full bg-slate-50 dark:bg-slate-800 mb-6">
-          {isPassing ? (
-            <AwardIcon className="w-12 h-12 text-green-500" />
-          ) : (
-            <RefreshIcon className="w-12 h-12 text-orange-500" />
+          <h2 className="text-6xl font-black text-slate-900 mb-2 font-heading tracking-tight">{evaluation.score}<span className="text-2xl text-slate-400">/100</span></h2>
+          <p className="text-2xl font-bold text-slate-500 mb-10 font-heading">
+            {isPassing ? "Master Level Achievement!" : "Great Effort, Scholar!"}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            <div className="p-6 rounded-[32px] bg-emerald-50 border-2 border-emerald-100 group">
+              <h3 className="font-black text-emerald-700 mb-4 flex items-center gap-3 font-heading uppercase tracking-widest text-xs">
+                <CheckCircleIcon className="w-5 h-5" /> Your Strengths
+              </h3>
+              <ul className="space-y-3">
+                {evaluation.strengths.map((s, i) => (
+                  <li key={i} className="text-sm font-bold text-emerald-800 flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0"></div>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="p-6 rounded-[32px] bg-rose-50 border-2 border-rose-100">
+              <h3 className="font-black text-rose-700 mb-4 flex items-center gap-3 font-heading uppercase tracking-widest text-xs">
+                <ZapIcon className="w-5 h-5" /> Growth Areas
+              </h3>
+              <ul className="space-y-3">
+                {evaluation.improvements.map((s, i) => (
+                  <li key={i} className="text-sm font-bold text-rose-800 flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-rose-400 mt-1.5 shrink-0"></div>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mentor Feedback Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-2 edu-card-3d p-10 bg-white">
+          <h3 className="text-2xl font-black text-slate-900 mb-6 font-heading flex items-center gap-4">
+            <BrainIcon className="w-8 h-8 text-indigo-600" />
+            Mentor's Insights
+          </h3>
+          <div className="prose prose-indigo max-w-none">
+            <p className="text-slate-600 text-lg leading-relaxed font-medium bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 italic">
+               "{evaluation.feedback}"
+            </p>
+          </div>
+
+          {evaluation.complexityAnalysis && (
+            <div className="mt-8 p-6 bg-indigo-600 rounded-[32px] text-white shadow-xl shadow-indigo-200">
+                <div className="flex items-center gap-3 mb-4">
+                    <ActivityIcon className="w-6 h-6 text-indigo-200" />
+                    <h4 className="font-black uppercase tracking-widest text-xs font-heading">Efficiency Scorecard</h4>
+                </div>
+                <p className="text-indigo-50 font-mono text-sm leading-relaxed">{evaluation.complexityAnalysis}</p>
+            </div>
           )}
         </div>
 
-        <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">{evaluation.score}/100</h2>
-        <p className="text-lg text-slate-500 dark:text-slate-400 mb-6">
-          {isPassing ? "Excellent work! You've mastered this concept." : "Good attempt. Here is how you can improve."}
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl">
-          <div>
-            <h3 className="font-semibold text-green-600 dark:text-green-400 mb-3 flex items-center gap-2">
-              <CheckCircleIcon className="w-4 h-4" /> Strengths
-            </h3>
-            <ul className="space-y-2">
-              {evaluation.strengths.map((s, i) => (
-                <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                  <span className="block w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-orange-600 dark:text-orange-400 mb-3 flex items-center gap-2">
-              <XCircleIcon className="w-4 h-4" /> Improvements
-            </h3>
-            <ul className="space-y-2">
-              {evaluation.improvements.map((s, i) => (
-                <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                  <span className="block w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0"></span>
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* Reference Quick-view */}
+        <div className="edu-card-3d p-8 bg-slate-900 text-white flex flex-col h-full">
+            <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-black font-heading flex items-center gap-3">
+                    <CodeIcon className="w-6 h-6 text-indigo-400" />
+                    Ideal Path
+                </h3>
+                <span className="px-3 py-1 rounded-lg bg-white/10 text-[10px] font-bold text-indigo-300">JS Reference</span>
+            </div>
+            
+            <div className="flex-grow bg-black/30 rounded-2xl p-4 font-mono text-xs overflow-auto border border-white/5 custom-scrollbar">
+                <pre className="text-indigo-200/90 whitespace-pre-wrap leading-relaxed">
+                    {evaluation.referenceSolution || "// No reference solution available for this challenge."}
+                </pre>
+            </div>
+            
+            <button className="mt-6 w-full py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-all border border-white/10">
+                Study Reference
+            </button>
         </div>
       </div>
 
-      {/* Detailed Feedback */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-lg">
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Detailed Feedback</h3>
-        <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-          {evaluation.feedback}
-        </p>
-
-        {evaluation.complexityAnalysis && (
-          <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
-            <h4 className="font-semibold text-indigo-900 dark:text-indigo-300 mb-2">Complexity Analysis</h4>
-            <p className="text-indigo-800 dark:text-indigo-200 text-sm font-mono">{evaluation.complexityAnalysis}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Reference Solution */}
-      {evaluation.referenceSolution && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2">
-            <CodeIcon className="w-5 h-5 text-slate-500" />
-            <h3 className="font-bold text-slate-700 dark:text-slate-200">Reference Solution</h3>
-          </div>
-          <div className="p-0">
-            <textarea
-              readOnly
-              value={evaluation.referenceSolution}
-              className="w-full h-64 p-4 bg-slate-950 text-slate-300 font-mono text-sm resize-none focus:outline-none"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-center gap-4 py-6">
-        <button onClick={onRetry} className="px-6 py-3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-semibold rounded-lg transition-colors">
-          Retry Question
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row justify-center gap-6 pt-6">
+        <button 
+            onClick={onRetry} 
+            className="px-10 py-5 rounded-[24px] bg-white border-2 border-slate-200 text-slate-600 text-lg font-black font-heading hover:border-indigo-600 transition-all shadow-xl active:scale-95"
+        >
+          Review & Retry
         </button>
-        <button onClick={onNew} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-indigo-600/20">
-          Next Question
+        <button 
+            onClick={onNew} 
+            className="px-10 py-5 rounded-[24px] bg-indigo-600 text-white text-lg font-black font-heading hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-500/40 flex items-center justify-center gap-4 active:scale-95 transform hover:scale-105"
+        >
+          Begin Next Lesson
+          <RefreshIcon className="w-6 h-6" />
         </button>
       </div>
     </div>
