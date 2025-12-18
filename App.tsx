@@ -64,7 +64,7 @@ const App: React.FC = () => {
   const [currentEvaluation, setCurrentEvaluation] = useState<Evaluation | null>(null);
   const [history, setHistory] = useState<Attempt[]>([]);
 
-  const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
+    const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3001';
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
