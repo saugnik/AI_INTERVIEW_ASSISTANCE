@@ -1,157 +1,124 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
- */
-import React, { useState } from 'react';
-import { XIcon } from './icons';
+*/
+import React from 'react';
 
 interface AdminCodeModalProps {
-    isOpen: boolean;
-    userEmail: string;
-    userName: string;
-    onClose: () => void;
-    onSuccess: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  adminCode: string;
 }
 
-const AdminCodeModal: React.FC<AdminCodeModalProps> = ({ isOpen, userEmail, userName, onClose, onSuccess }) => {
-    const [code, setCode] = useState('');
-    const [isVerifying, setIsVerifying] = useState(false);
-    const [error, setError] = useState('');
+export function AdminCodeModal({ isOpen, onClose, adminCode }: AdminCodeModalProps) {
+  if (!isOpen) return null;
 
-    const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(adminCode);
+  };
 
-    const handleVerify = async () => {
-        if (!code.trim()) {
-            setError('Please enter an admin code');
-            return;
-        }
-
-        setIsVerifying(true);
-        setError('');
-
-        try {
-            const response = await fetch(`${AUTH_BACKEND_URL}/auth/verify-admin-code`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    code: code.trim(),
-                    email: userEmail
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                // Update user role in localStorage
-                const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-                userData.role = 'admin';
-                localStorage.setItem('userData', JSON.stringify(userData));
-                localStorage.setItem('userRole', 'admin');
-
-                onSuccess();
-            } else {
-                setError(data.message || 'Invalid admin code');
-            }
-        } catch (err) {
-            console.error('Error verifying admin code:', err);
-            setError('Failed to verify code. Please try again.');
-        } finally {
-            setIsVerifying(false);
-        }
-    };
-
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !isVerifying) {
-            handleVerify();
-        }
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-8 border border-slate-200 dark:border-slate-800 transform animate-scale-in">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                        Administrator Verification
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
-                    >
-                        <XIcon className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-4 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
-                        <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
-                            {userName.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                            <p className="font-semibold text-slate-900 dark:text-white">{userName}</p>
-                            <p className="text-sm text-slate-600 dark:text-slate-400">{userEmail}</p>
-                        </div>
-                    </div>
-
-                    <p className="text-slate-600 dark:text-slate-400 mb-4">
-                        To complete administrator login, please enter your admin access code.
-                    </p>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="adminCode" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Admin Code
-                            </label>
-                            <input
-                                id="adminCode"
-                                type="text"
-                                value={code}
-                                onChange={(e) => {
-                                    setCode(e.target.value.toUpperCase());
-                                    setError('');
-                                }}
-                                onKeyPress={handleKeyPress}
-                                placeholder="Enter admin code"
-                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none transition-colors font-mono text-lg tracking-wider"
-                                disabled={isVerifying}
-                                autoFocus
-                            />
-                        </div>
-
-                        {error && (
-                            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex gap-3">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 px-6 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-                        disabled={isVerifying}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleVerify}
-                        disabled={isVerifying || !code.trim()}
-                        className="flex-1 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                        {isVerifying ? 'Verifying...' : 'Verify Code'}
-                    </button>
-                </div>
-
-                <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-4">
-                    Contact your system administrator if you don't have an admin code.
-                </p>
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div 
+        className="relative w-full max-w-md overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
+          borderRadius: '24px',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.2)'
+        }}
+      >
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500"></div>
+        
+        <div className="p-8">
+          <div className="text-center mb-6">
+            <div 
+              className="w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4)'
+              }}
+            >
+              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
             </div>
-        </div>
-    );
-};
+            <h2 
+              className="text-2xl font-bold mb-2"
+              style={{ 
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: 'linear-gradient(135deg, #fff 0%, #c4b5fd 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              Educator Access Code
+            </h2>
+            <p className="text-violet-300 text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              Share this code with educators to grant them admin access
+            </p>
+          </div>
 
-export default AdminCodeModal;
+          <div 
+            className="relative p-4 rounded-xl mb-6"
+            style={{
+              background: 'rgba(0, 0, 0, 0.3)',
+              border: '1px solid rgba(139, 92, 246, 0.2)'
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <code 
+                className="text-2xl font-mono tracking-wider text-cyan-400"
+                style={{ letterSpacing: '0.2em' }}
+              >
+                {adminCode}
+              </code>
+              <button
+                onClick={copyToClipboard}
+                className="p-2 rounded-lg transition-all duration-200 hover:scale-110"
+                style={{
+                  background: 'rgba(139, 92, 246, 0.2)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)'
+                }}
+                title="Copy to clipboard"
+              >
+                <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div 
+            className="p-4 rounded-xl mb-6"
+            style={{
+              background: 'rgba(251, 191, 36, 0.1)',
+              border: '1px solid rgba(251, 191, 36, 0.3)'
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-amber-200 text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                Keep this code secure. Anyone with this code can access educator features.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="w-full py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-[1.02]"
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+              boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)'
+            }}
+          >
+            Got It
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
