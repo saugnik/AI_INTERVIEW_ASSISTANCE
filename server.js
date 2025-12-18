@@ -5,6 +5,7 @@ import crypto from 'crypto';
 // Removed GoogleGenAI SDK - using REST API instead
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { evaluateCode } from './evaluator.js';
 
 dotenv.config();
 
@@ -243,9 +244,29 @@ Return ONLY valid JSON:
 Return ONLY valid JSON:
 {"title":"Design X","description":"System to design","constraints":["Scale: 100M users"],"examples":[{"input":"Scenario","output":"Components","explanation":"Why"}],"starterCode":"","testCases":[],"hints":["Scalability","Caching"]}`;
         } else {
-          prompt = `Generate a ${difficulty} level CODING question for "${domain}". Requires writing CODE.
-Return ONLY valid JSON:
-{"title":"Problem","description":"What to solve","constraints":["Constraint"],"examples":[{"input":"Input","output":"Output","explanation":"Why"}],"starterCode":"function solve(x) {\n  //code\n}","testCases":[{"input":"1","expected":"1"},{"input":"2","expected":"2"}],"hints":["Hint"]}`;
+          prompt = `Generate a ${difficulty} level CODING question for "${domain}". This requires writing executable JavaScript code.
+
+CRITICAL: You MUST include at least 3 test cases with actual input values and expected outputs.
+
+Return ONLY valid JSON in this EXACT format:
+{
+  "title": "Problem Name",
+  "description": "Clear problem description with requirements",
+  "constraints": ["Time: O(n)", "Space: O(1)", "Input range: 1-1000"],
+  "examples": [
+    {"input": "[1,2,3]", "output": "[3,2,1]", "explanation": "Array is reversed"},
+    {"input": "[5]", "output": "[5]", "explanation": "Single element stays same"}
+  ],
+  "starterCode": "function solution(arr) {\\n  // Write your code here\\n  return arr;\\n}",
+  "testCases": [
+    {"input": "[1,2,3]", "expected": "[3,2,1]"},
+    {"input": "[5]", "expected": "[5]"},
+    {"input": "[]", "expected": "[]"}
+  ],
+  "hints": ["Think about array methods", "Consider edge cases"]
+}
+
+The testCases array is MANDATORY and must have at least 3 test cases with valid JavaScript values.`;
         }
 
 
@@ -328,64 +349,10 @@ Return ONLY valid JSON:
         const testResults = [];
 
         if (totalTests > 0) {
-          const vm = await import('vm');
-
-          for (let i = 0; i < testCases.length; i++) {
-            const testCase = testCases[i];
-            try {
-              // Parse input if it's a JSON string
-              let parsedInput = testCase.input;
-              if (typeof parsedInput === 'string') {
-                try {
-                  parsedInput = JSON.parse(parsedInput);
-                } catch (e) {
-                  // If parsing fails, keep as string
-                }
-              }
-
-              // Create a sandbox environment
-              const sandbox = {
-                console: console,
-                result: null
-              };
-
-              // Wrap user code to capture the result
-              const wrappedCode = `
-                ${userAnswer}
-                // Try to find and execute the main function
-                const functionMatch = \`${userAnswer}\`.match(/function\\s+(\\w+)/);
-                if (functionMatch) {
-                  const funcName = functionMatch[1];
-                  if (typeof eval(funcName) === 'function') {
-                    result = eval(funcName)(${JSON.stringify(parsedInput)});
-                  }
-                }
-              `;
-
-              vm.runInNewContext(wrappedCode, sandbox, { timeout: 1000 });
-
-              const userOutput = String(sandbox.result || '').trim();
-              const expectedOutput = String(testCase.expected || testCase.output || '').trim();
-
-              const passed = userOutput === expectedOutput;
-              if (passed) passedTests++;
-
-              testResults.push({
-                input: testCase.input,
-                expected: expectedOutput,
-                actual: userOutput,
-                passed
-              });
-
-            } catch (error) {
-              testResults.push({
-                input: testCase.input,
-                expected: testCase.expected || testCase.output,
-                actual: `Error: ${error.message}`,
-                passed: false
-              });
-            }
-          }
+          // Use simple evaluator
+          const evalResults = evaluateCode(userAnswer, testCases);
+          passedTests = evalResults.passedTests;
+          testResults.push(...evalResults.testResults);
         }
 
         // Calculate score based on test results
@@ -1179,6 +1146,68 @@ Return ONLY valid JSON:
         res.end(JSON.stringify({ error: 'Failed to save user' }));
       }
     });
+    return;
+  }
+
+  // GET /api/student/assigned-questions - Get questions assigned to student
+  if (pathname === '/api/student/assigned-questions' && req.method === 'GET') {
+    try {
+      const userEmail = req.headers['x-user-email'];
+      console.log('📚 Fetching assigned questions for:', userEmail);
+
+      const assignments = await prisma.question_assignments.findMany({
+        where: { student_email: userEmail },
+        include: {
+          questions: true
+        },
+        orderBy: { assigned_at: 'desc' }
+      });
+
+      console.log(`✅ Found ${assignments.length} assignments`);
+
+      // Group assignments by source
+      const grouped = {
+        aiPractice: assignments.filter(a => a.source === 'ai_generated'),
+        adminPractice: assignments.filter(a => a.source === 'admin_assigned' && a.assignment_type === 'practice'),
+        test: assignments.filter(a => a.assignment_type === 'test')
+      };
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ assignments: grouped }));
+    } catch (error) {
+      console.error('Error fetching assigned questions:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to fetch assigned questions' }));
+    }
+    return;
+  }
+
+  // GET /api/admin/questions - Get all questions for admin dashboard
+  if (pathname === '/api/admin/questions' && req.method === 'GET') {
+    try {
+      console.log('📚 Fetching all questions for admin...');
+
+      const questions = await prisma.questions.findMany({
+        include: {
+          _count: {
+            select: {
+              attempts: true,
+              question_assignments: true
+            }
+          }
+        },
+        orderBy: { created_at: 'desc' }
+      });
+
+      console.log(`✅ Found ${questions.length} questions`);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ questions }));
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to fetch questions' }));
+    }
     return;
   }
 

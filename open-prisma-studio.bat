@@ -1,0 +1,3 @@
+@echo off
+echo Starting Prisma Studio...
+npx prisma studio --url "postgresql://postgres:postgres@localhost:5432/interview_db?schema=public"

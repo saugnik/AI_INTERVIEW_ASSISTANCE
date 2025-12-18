@@ -2,58 +2,348 @@
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+
+  /* Educational Color Palette - Bright & Friendly */
+  --color-primary: #3b82f6;
+  /* Bright Blue */
+  --color-secondary: #8b5cf6;
+  /* Purple */
+  --color-accent: #10b981;
+  /* Green */
+  --color-warning: #f59e0b;
+  /* Amber */
+  --color-success: #22c55e;
+  /* Emerald */
+  --color-info: #06b6d4;
+  /* Cyan */
+
+  /* Light backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-accent: #f0f9ff;
 }
 
-textarea::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+/* Clean Scrollbar */
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
 }
 
-textarea::-webkit-scrollbar-track {
-  background: #0f172a;
+*::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
 }
 
-textarea::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 5px;
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+  border-radius: 10px;
+  border: 3px solid #f1f5f9;
 }
 
-textarea::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #2563eb, #7c3aed);
 }
 
-.glass-panel {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* Educational Card Styles */
+.edu-card {
+  background: white;
+  border-radius: 16px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
 }
 
-/* Animations */
-@keyframes fade-in {
+.edu-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1), 0 4px 6px -2px rgba(59, 130, 246, 0.05);
+  transform: translateY(-2px);
+}
+
+/* Friendly Button Styles */
+.btn-edu-primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  border: none;
+}
+
+.btn-edu-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.btn-edu-secondary {
+  background: white;
+  color: #3b82f6;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  border: 2px solid #3b82f6;
+  transition: all 0.3s ease;
+}
+
+.btn-edu-secondary:hover {
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+/* Badge Styles - Educational */
+.badge-edu {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.badge-edu-success {
+  background: #dcfce7;
+  color: #166534;
+  border: 2px solid #86efac;
+}
+
+.badge-edu-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 2px solid #fcd34d;
+}
+
+.badge-edu-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 2px solid #fca5a5;
+}
+
+.badge-edu-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 2px solid #93c5fd;
+}
+
+/* Progress Bar */
+.progress-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+}
+
+/* Animations - Gentle & Friendly */
+@keyframes bounce-gentle {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes fade-in-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-@keyframes gradient {
-  0%, 100% {
-    background-position: 0% 50%;
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
   }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
   50% {
-    background-position: 100% 50%;
+    opacity: 0.8;
   }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.6s ease-out;
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
 }
 
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient 3s ease infinite;
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Educational Input Styles */
+.input-edu {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.input-edu:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Code Editor - Light & Clean */
+.code-editor-edu {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  transition: all 0.3s ease;
+}
+
+.code-editor-edu:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Sidebar - Clean & Organized */
+.sidebar-edu {
+  background: white;
+  border-right: 2px solid #e2e8f0;
+  box-shadow: 4px 0 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Nav Item - Educational */
+.nav-item-edu {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.nav-item-edu:hover {
+  background: #f1f5f9;
+  color: #3b82f6;
+}
+
+.nav-item-edu.active {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #3b82f6;
+  font-weight: 600;
+  border-left: 4px solid #3b82f6;
+}
+
+/* Feature Card - Educational */
+.feature-card-edu {
+  background: white;
+  padding: 2rem;
+  border-radius: 20px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.feature-card-edu:hover {
+  border-color: #3b82f6;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -4px rgba(59, 130, 246, 0.15);
+}
+
+/* Icon Containers */
+.icon-container-edu {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.icon-container-blue {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1e40af;
+}
+
+.icon-container-purple {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #6b21a8;
+}
+
+.icon-container-green {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #166534;
+}
+
+/* Alert/Info Boxes */
+.alert-edu {
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border-left: 4px solid;
+  font-size: 0.875rem;
+}
+
+.alert-edu-info {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.alert-edu-success {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #166534;
+}
+
+.alert-edu-warning {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+/* Smooth Transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light Theme Gradient Backgrounds */
+.bg-gradient-edu {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0fdf4 100%);
+}
+
+.bg-gradient-edu-alt {
+  background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 50%, #fef3c7 100%);
 }

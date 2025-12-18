@@ -257,22 +257,22 @@ const App: React.FC = () => {
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside className={`
-        fixed top-0 left-0 z-50 h-full w-72 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transform transition-transform duration-300 ease-in-out
+        fixed top-0 left-0 z-50 h-full w-72 sidebar-edu transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="p-6 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-xl text-indigo-600 dark:text-indigo-400">
+        <div className="p-6 flex items-center justify-between border-b-2 border-slate-100">
+          <div className="flex items-center gap-2 font-bold text-xl text-blue-600">
             <ZapIcon className="w-6 h-6 fill-current" />
             <span>InterviewAI</span>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-500">
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-600 transition-colors">
             <XIcon />
           </button>
         </div>
@@ -293,10 +293,7 @@ const App: React.FC = () => {
                   setCurrentView(item.id);
                   setIsSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium ${currentView === item.id
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
-                  }`}
+                className={`nav-item-edu w-full flex items-center gap-3 ${currentView === item.id ? 'active' : ''}`}
               >
                 <item.icon className="w-5 h-5" />
                 {item.label}
@@ -304,20 +301,20 @@ const App: React.FC = () => {
             ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-200 dark:border-slate-800">
+        <div className="absolute bottom-0 left-0 right-0 p-6 border-t-2 border-slate-100">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-md">
                 {userName.substring(0, 2).toUpperCase()}
               </div>
               <div className="text-sm">
-                <p className="font-bold text-slate-900 dark:text-white">{userName}</p>
-                <p className="text-slate-500 dark:text-slate-500">{userEmail || 'Free Plan'}</p>
+                <p className="font-bold text-slate-900">{userName}</p>
+                <p className="text-slate-500 text-xs">{userEmail || 'Free Plan'}</p>
               </div>
             </div>
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500"
+              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all"
             >
               {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
@@ -337,7 +334,7 @@ const App: React.FC = () => {
                 console.error('Logout failed:', error);
               }
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-medium transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border-2 border-red-200 hover:border-red-300 transition-all font-medium transform hover:scale-105 active:scale-95"
           >
             <LogoutIcon className="w-4 h-4" />
             Logout
@@ -348,46 +345,48 @@ const App: React.FC = () => {
   );
 
   const renderLanding = () => (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col">
       <header className="py-6 px-8 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2 font-bold text-2xl text-indigo-600 dark:text-indigo-400">
+        <div className="flex items-center gap-2 font-bold text-2xl text-blue-600">
           <ZapIcon className="w-8 h-8 fill-current" />
           <span>InterviewAI</span>
         </div>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all transform hover:scale-110"
+            className="p-3 rounded-xl bg-white border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-all"
           >
             {darkMode ? <SunIcon /> : <MoonIcon />}
           </button>
           {isAuthenticated && (
             <button
               onClick={() => setCurrentView(AppView.DASHBOARD)}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-semibold transition-all transform hover:scale-105 shadow-lg shadow-indigo-600/20"
+              className="btn-edu-primary"
             >
-              Start Practicing
+              Start Learning
             </button>
           )}
         </div>
       </header>
 
       <main className="flex-grow flex flex-col items-center justify-center text-center px-4 py-20">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-medium text-sm mb-8 animate-pulse">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 font-medium text-sm mb-8 animate-bounce-gentle border-2 border-blue-200">
           <AwardIcon className="w-4 h-4" />
-          <span>#1 AI Platform for Tech Interviews</span>
+          <span>Trusted by 10,000+ Students</span>
         </div>
-        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-white mb-8 tracking-tight max-w-4xl leading-tight animate-fade-in">
-          Master your technical interviews with <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-gradient">AI precision</span>.
+
+        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-8 tracking-tight max-w-4xl leading-tight animate-fade-in-up">
+          Master Technical Interviews with <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">AI-Powered Practice</span>
         </h1>
-        <p className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mb-12 leading-relaxed">
-          Generate realistic coding and system design questions, write code in our editor, and get instant, detailed feedback from our Gemini-powered evaluator.
+
+        <p className="text-xl text-slate-600 max-w-2xl mb-12 leading-relaxed">
+          Practice coding questions, get instant AI feedback, and track your progress. Perfect for students preparing for tech interviews!
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-20">
           <button
             onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google`}
-            className="px-8 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-lg font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] hover:border-indigo-300 dark:hover:border-indigo-600"
+            className="px-8 py-4 bg-white border-2 border-slate-200 hover:border-blue-400 text-slate-900 text-lg font-bold rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
           >
             <svg className="w-6 h-6" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -402,16 +401,16 @@ const App: React.FC = () => {
         {/* Feature Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full text-left">
           {[
-            { icon: <CodeIcon className="w-6 h-6 text-white" />, color: "bg-blue-500", title: "Smart Generation", desc: "Tailored questions based on difficulty, domain, and topics.", delay: "0" },
-            { icon: <PlayIcon className="w-6 h-6 text-white" />, color: "bg-purple-500", title: "Live Execution", desc: "Write and simulate code execution directly in the browser.", delay: "100" },
-            { icon: <BookIcon className="w-6 h-6 text-white" />, color: "bg-green-500", title: "Instant Feedback", desc: "Detailed analysis on complexity, edge cases, and best practices.", delay: "200" }
+            { icon: <CodeIcon className="w-6 h-6" />, color: "icon-container-blue", title: "Smart Practice", desc: "AI-generated questions tailored to your skill level and learning goals." },
+            { icon: <PlayIcon className="w-6 h-6" />, color: "icon-container-purple", title: "Instant Feedback", desc: "Get detailed explanations and suggestions to improve your solutions." },
+            { icon: <BookIcon className="w-6 h-6" />, color: "icon-container-green", title: "Track Progress", desc: "Monitor your improvement with detailed analytics and insights." }
           ].map((f, i) => (
-            <div key={i} className="p-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 hover:-translate-y-1">
-              <div className={`w-12 h-12 rounded-xl ${f.color} flex items-center justify-center mb-6 shadow-lg`}>
+            <div key={i} className="feature-card-edu animate-fade-in-up" style={{ animationDelay: `${i * 0.1}s` }}>
+              <div className={`icon-container-edu ${f.color} mb-6`}>
                 {f.icon}
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">{f.title}</h3>
-              <p className="text-slate-500 dark:text-slate-400">{f.desc}</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">{f.title}</h3>
+              <p className="text-slate-600">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -444,53 +443,58 @@ const App: React.FC = () => {
     return (
       <div className="h-[calc(100vh-2rem)] flex flex-col md:flex-row gap-6">
         {/* Left: Question Panel */}
-        <div className="w-full md:w-1/3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden shadow-lg">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+        <div className="w-full md:w-1/3 glass-card flex flex-col overflow-hidden shadow-2xl">
+          <div className="p-6 border-b border-white/10 bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
             <div className="flex items-center gap-2 mb-4">
-              <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${currentQuestion.difficulty === Difficulty.HARD ? 'bg-red-100 text-red-700' :
-                currentQuestion.difficulty === Difficulty.MEDIUM ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+              <span className={`badge ${currentQuestion.difficulty === Difficulty.HARD ? 'badge-error' :
+                currentQuestion.difficulty === Difficulty.MEDIUM ? 'badge-warning' : 'badge-success'
                 }`}>
                 {currentQuestion.difficulty}
               </span>
-              <span className="text-slate-500 text-sm font-medium">{currentQuestion.domain}</span>
+              <span className="text-slate-400 text-sm font-medium">{currentQuestion.domain}</span>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{currentQuestion.title}</h2>
+            <h2 className="text-2xl font-bold gradient-text">{currentQuestion.title}</h2>
           </div>
 
           <div className="flex-grow p-6 overflow-y-auto prose dark:prose-invert max-w-none">
-            <h3 className="text-lg font-bold">Description</h3>
-            <p className="whitespace-pre-wrap text-slate-600 dark:text-slate-300">{currentQuestion.description}</p>
+            <h3 className="text-lg font-bold text-white">Description</h3>
+            <p className="whitespace-pre-wrap text-slate-300">{currentQuestion.description}</p>
 
             {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
               <>
-                <h4 className="font-bold mt-6 mb-2">Constraints</h4>
-                <ul className="list-disc pl-5 space-y-1 text-slate-600 dark:text-slate-300">
+                <h4 className="font-bold mt-6 mb-2 text-white">Constraints</h4>
+                <ul className="list-disc pl-5 space-y-1 text-slate-300">
                   {currentQuestion.constraints.map((c, i) => <li key={i}>{c}</li>)}
                 </ul>
               </>
             )}
 
-            {currentQuestion.testCases && currentQuestion.testCases.length > 0 && (
+            {currentQuestion.examples && currentQuestion.examples.length > 0 && (
               <>
-                <h4 className="font-bold mt-6 mb-2">Examples</h4>
-                {currentQuestion.testCases.map((tc, i) => (
-                  <div key={i} className="mb-4 p-4 bg-slate-100 dark:bg-slate-950 rounded-lg font-mono text-sm">
-                    <div className="mb-2"><span className="text-slate-500">Input:</span> {tc.input}</div>
-                    <div><span className="text-slate-500">Output:</span> {tc.expectedOutput}</div>
+                <h4 className="font-bold mt-6 mb-2 text-white">Examples</h4>
+                {currentQuestion.examples.map((example, i) => (
+                  <div key={i} className="mb-4 p-4 glass-card rounded-lg font-mono text-sm border border-indigo-500/30">
+                    <div className="mb-2"><span className="text-indigo-400 font-semibold">Input:</span> <span className="text-cyan-300">{example.input}</span></div>
+                    <div className="mb-2"><span className="text-indigo-400 font-semibold">Output:</span> <span className="text-green-300">{example.output}</span></div>
+                    {example.explanation && (
+                      <div className="mt-2 text-slate-400 text-xs border-t border-white/10 pt-2">
+                        <span className="text-purple-400 font-semibold">Explanation:</span> {example.explanation}
+                      </div>
+                    )}
                   </div>
                 ))}
               </>
             )}
           </div>
 
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+          <div className="p-4 border-t border-white/10 bg-gradient-to-br from-purple-500/10 to-pink-500/10">
             <details className="group">
-              <summary className="flex items-center gap-2 cursor-pointer font-medium text-indigo-600 dark:text-indigo-400">
+              <summary className="flex items-center gap-2 cursor-pointer font-medium gradient-text hover:opacity-80 transition-opacity">
                 <LightbulbIcon className="w-4 h-4" /> Show Hints
               </summary>
-              <div className="mt-4 space-y-2 pl-4 border-l-2 border-indigo-200 dark:border-indigo-800">
+              <div className="mt-4 space-y-2 pl-4 border-l-2 border-gradient-to-b from-indigo-500 to-purple-500">
                 {currentQuestion.hints?.map((hint, i) => (
-                  <p key={i} className="text-sm text-slate-600 dark:text-slate-400 italic">{hint}</p>
+                  <p key={i} className="text-sm text-slate-300 italic">{hint}</p>
                 ))}
               </div>
             </details>
@@ -499,24 +503,25 @@ const App: React.FC = () => {
 
         {/* Right: Editor Panel */}
         <div className="w-full md:w-2/3 flex flex-col gap-4">
-          <div className="flex-grow bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800">
-              <div className="flex items-center gap-2">
+          <div className="flex-grow code-editor shadow-2xl flex flex-col overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-900 to-slate-800 border-b border-indigo-500/30">
+              <div className="flex items-center gap-3">
                 <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
+                  <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/50"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
                 </div>
-                <span className="ml-4 text-xs font-mono text-slate-400">solution.js</span>
+                <span className="ml-2 text-xs font-mono text-indigo-300 font-semibold">solution.js</span>
               </div>
-              <div className="text-xs text-slate-500">JavaScript</div>
+              <div className="badge badge-info text-xs">JavaScript</div>
             </div>
             <textarea
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
-              className="flex-grow w-full p-4 bg-transparent text-slate-300 font-mono text-sm resize-none focus:outline-none"
+              className="flex-grow w-full p-6 bg-transparent text-slate-200 font-mono text-sm resize-none focus:outline-none leading-relaxed"
               spellCheck="false"
-              placeholder="// Start coding here..."
+              placeholder="// Start coding here...
+// Your solution will be evaluated against test cases"
             />
           </div>
 
@@ -524,7 +529,7 @@ const App: React.FC = () => {
             <button
               onClick={handleSubmitAttempt}
               disabled={isLoading}
-              className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 disabled:opacity-50 transition-all flex items-center gap-2"
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 animate-pulse-glow"
             >
               {isLoading ? 'Evaluating...' : 'Submit Solution'}
               <PlayIcon className="w-4 h-4" />
@@ -673,15 +678,15 @@ const App: React.FC = () => {
       ) : currentView === AppView.LANDING ? (
         renderLanding()
       ) : (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 flex">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 transition-colors duration-300 flex">
           {renderSidebar()}
 
           <div className="flex-1 lg:ml-72 flex flex-col min-h-screen">
-            <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center lg:hidden">
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
+            <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-lg border-b-2 border-slate-100 px-6 py-4 flex justify-between items-center lg:hidden shadow-sm">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:text-blue-600 transition-colors">
                 <MenuIcon />
               </button>
-              <span className="font-bold text-lg text-slate-900 dark:text-white">InterviewAI</span>
+              <span className="font-bold text-lg text-blue-600">InterviewAI</span>
               <div className="w-8"></div> {/* Spacer */}
             </header>
 
