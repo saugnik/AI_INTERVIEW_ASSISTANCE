@@ -14,10 +14,10 @@ import {
   UserStats
 } from './types';
 import { evaluateAttempt, generateQuestion } from './services/geminiService';
-import LoadingIndicator from './components/LoadingIndicator';
+import { LoadingIndicator } from './components/LoadingIndicator';
 import QuestionConfigurator from './components/PromptForm';
 import EvaluationDisplay from './components/VideoResult';
-import AdminCodeModal from './components/AdminCodeModal';
+import { AdminCodeModal } from './components/AdminCodeModal';
 import AdminDashboard from './components/AdminDashboard';
 import StudentAssignedQuestions from './components/StudentAssignedQuestions';
 import Profile from './components/Profile';
