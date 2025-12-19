@@ -25,7 +25,7 @@ export function configurePassport() {
             {
                 clientID: process.env.GOOGLE_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                callbackURL: 'http://localhost:3001/auth/google/callback',
+                callbackURL: process.env.GOOGLE_REDIRECT_URI || `http://localhost:${process.env.PORT || 3002}/auth/google/callback`,
             },
             async (accessToken, refreshToken, profile, done) => {
                 try {

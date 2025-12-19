@@ -7,68 +7,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model attempt_test_results {
-  id                String     @id @db.Uuid
-  attempt_id        String     @db.Uuid
-  test_case_id      String     @db.Uuid
-  passed            Boolean
-  stdout            String?
-  stderr            String?
-  execution_time_ms Int?
-  attempts          attempts   @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
-  test_cases        test_cases @relation(fields: [test_case_id], references: [id], onDelete: Cascade)
+// ============================================
+// AUTHENTICATION & USERS
+// ============================================
 
-  @@index([attempt_id])
-  @@index([test_case_id])
-}
-
-model attempts {
-  id                   String                 @id @db.Uuid
-  user_id              String                 @db.Uuid
-  question_id          String                 @db.Uuid
-  language             String?
-  submission           String
-  score                Decimal?               @db.Decimal(5, 4)
-  feedback             Json?
-  created_at           DateTime               @default(now())
-  attempt_test_results attempt_test_results[]
-  questions            questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
-  users                users                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([created_at])
-  @@index([question_id])
-  @@index([user_id])
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model auth_users {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String    @id  // PRIMARY KEY - using email
   google_id     String?   @unique
-  email         String    @unique
   name          String?
   picture       String?
-  created_at    DateTime? @default(now()) @db.Timestamp(6)
-  last_login_at DateTime? @default(now()) @db.Timestamp(6)
+  created_at    DateTime  @default(now())
+  last_login_at DateTime  @default(now())
   password_hash String?
   auth_provider String?   @default("google")
-  role          String    @default("user") // "user" or "admin"
-
-  @@index([email], map: "idx_auth_users_email")
-  @@index([google_id], map: "idx_auth_users_google_id")
-  @@index([auth_provider], map: "idx_auth_users_provider")
-  @@index([role], map: "idx_auth_users_role")
+  role          String    @default("student") // "student" or "admin"
+  
+  // Relations
+  rankings              student_rankings?
+  levels                student_levels?
+  question_assignments  question_assignments[]
+  solved_questions      solved_questions[]
+  attempts              attempts[]
+  
+  @@index([google_id])
+  @@index([role])
 }
 
 model session {
   sid    String   @id @db.VarChar
   sess   Json     @db.Json
   expire DateTime @db.Timestamp(6)
-
+  
   @@index([expire], map: "IDX_session_expire")
 }
 
+model admin_codes {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  description String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  expires_at  DateTime?
+  used_by     String[]  @default([])
+  
+  @@index([code])
+  @@index([is_active])
+}
+
+// ============================================
+// QUESTIONS & TEST CASES
+// ============================================
+
 model questions {
-  id                   String                 @id @db.Uuid
+  id                   String                 @id @default(uuid())
   domain               String
   difficulty           String
   type                 String
@@ -79,64 +70,164 @@ model questions {
   reference_solution   String?
   starter_code         String?
   created_at           DateTime               @default(now())
-  attempts             attempts[]
+  source               String                 @default("admin") // "admin" or "ai"
+  
+  // Relations
   test_cases           test_cases[]
   question_assignments question_assignments[]
+  attempts             attempts[]
+  solved_questions     solved_questions[]
+  hints                question_hints[]
+  
+  @@index([domain])
+  @@index([difficulty])
+  @@index([source])
 }
 
 model test_cases {
-  id                   String                 @id @db.Uuid
-  question_id          String                 @db.Uuid
+  id                   String                 @id @default(uuid())
+  question_id          String
   stdin                String
   stdout               String
   order_index          Int
+  
+  // Relations
+  question             questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
   attempt_test_results attempt_test_results[]
-  questions            questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
-
+  
   @@index([question_id])
 }
 
-model users {
-  id         String     @id @db.Uuid
-  email      String     @unique
-  name       String
-  created_at DateTime   @default(now())
-  metadata   Json?
-  attempts   attempts[]
+model question_hints {
+  id          String   @id @default(uuid())
+  question_id String
+  hint_text   String
+  hint_level  Int      // 1=gentle, 2=moderate, 3=strong
+  created_at  DateTime @default(now())
+  
+  // Relations
+  question    questions @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  
+  @@index([question_id])
+  @@index([hint_level])
 }
 
-model admin_codes {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code        String    @unique
-  description String?
-  is_active   Boolean   @default(true)
-  created_at  DateTime  @default(now())
-  expires_at  DateTime?
-  used_by     String[]  @default([])
-
-  @@index([code], map: "idx_admin_codes_code")
-  @@index([is_active], map: "idx_admin_codes_active")
-}
+// ============================================
+// ASSIGNMENTS
+// ============================================
 
 model question_assignments {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  question_id    String    @db.Uuid
-  student_email  String
-  assigned_by    String    // Admin email who assigned
-  assigned_at    DateTime  @default(now())
-  due_date       DateTime?
-  completed      Boolean   @default(false)
-  completed_at   DateTime?
+  id              String    @id @default(uuid())
+  question_id     String
+  student_email   String
+  assigned_by     String    // Admin email who assigned
+  assigned_at     DateTime  @default(now())
+  due_date        DateTime?
+  completed       Boolean   @default(false)
+  completed_at    DateTime?
+  assignment_type String    @default("practice") // "practice" or "test"
+  source          String    @default("admin")    // "ai" or "admin"
   
-  // Question categorization
-  assignment_type String   @default("practice")  // "practice" or "test"
-  source         String    @default("admin")     // "ai" or "admin"
+  // Relations
+  question        questions  @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  student         auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
   
-  questions      questions @relation(fields: [question_id], references: [id], onDelete: Cascade)
-  
-  @@index([student_email], map: "idx_assignments_student")
-  @@index([question_id], map: "idx_assignments_question")
-  @@index([assignment_type], map: "idx_assignments_type")
-  @@index([source], map: "idx_assignments_source")
   @@unique([question_id, student_email])
+  @@index([student_email])
+  @@index([question_id])
+  @@index([assignment_type])
+  @@index([source])
+}
+
+// ============================================
+// ATTEMPTS & RESULTS
+// ============================================
+
+model attempts {
+  id           String   @id @default(uuid())
+  student_email String
+  question_id  String
+  language     String?  @default("javascript")
+  submission   String
+  score        Decimal? @db.Decimal(5, 4)
+  feedback     Json?
+  created_at   DateTime @default(now())
+  
+  // Relations
+  student              auth_users             @relation(fields: [student_email], references: [email], onDelete: Cascade)
+  question             questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  attempt_test_results attempt_test_results[]
+  
+  @@index([student_email])
+  @@index([question_id])
+  @@index([created_at])
+}
+
+model attempt_test_results {
+  id                String   @id @default(uuid())
+  attempt_id        String
+  test_case_id      String
+  passed            Boolean
+  stdout            String?
+  stderr            String?
+  execution_time_ms Int?
+  
+  // Relations
+  attempt   attempts   @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
+  test_case test_cases @relation(fields: [test_case_id], references: [id], onDelete: Cascade)
+  
+  @@index([attempt_id])
+  @@index([test_case_id])
+}
+
+// ============================================
+// STUDENT PROGRESS & RANKINGS
+// ============================================
+
+model student_rankings {
+  student_email    String   @id
+  total_score      Int      @default(0)
+  rank             Int?
+  questions_solved Int      @default(0)
+  avg_score        Float    @default(0)
+  updated_at       DateTime @updatedAt
+  
+  // Relations
+  student          auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
+  
+  @@index([rank])
+  @@index([total_score])
+}
+
+model student_levels {
+  student_email String   @id
+  current_level Int      @default(1)
+  xp_points     Int      @default(0)
+  next_level_xp Int      @default(100)
+  badges        String[] @default([])
+  updated_at    DateTime @updatedAt
+  
+  // Relations
+  student       auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
+  
+  @@index([current_level])
+  @@index([xp_points])
+}
+
+model solved_questions {
+  id            String   @id @default(uuid())
+  student_email String
+  question_id   String
+  solved_at     DateTime @default(now())
+  score         Int
+  attempts      Int      @default(1)
+  
+  // Relations
+  student       auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
+  question      questions  @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  
+  @@unique([student_email, question_id])
+  @@index([student_email])
+  @@index([question_id])
+  @@index([solved_at])
 }

@@ -10,6 +10,9 @@ export enum AppView {
   RESULT = 'result',
   HISTORY = 'history',
   PROFILE = 'profile',
+  PROGRESS = 'progress',
+  LEADERBOARD = 'leaderboard',
+  AI_QUESTIONS = 'ai_questions',
 }
 
 export enum Difficulty {

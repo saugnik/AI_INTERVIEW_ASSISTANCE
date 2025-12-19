@@ -13,13 +13,13 @@ interface AdminCodeModalProps {
   adminCode?: string; // Optional if we're in "show" mode
 }
 
-export function AdminCodeModal({ 
-  isOpen, 
-  onClose, 
-  onSuccess, 
-  userEmail, 
+export function AdminCodeModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  userEmail,
   userName,
-  adminCode: displayCode 
+  adminCode: displayCode
 }: AdminCodeModalProps) {
   const [inputCode, setInputCode] = useState('');
   const [error, setError] = useState('');
@@ -39,13 +39,14 @@ export function AdminCodeModal({
     setError('');
 
     try {
-      const backendUrl = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${backendUrl}/api/admin/verify-code`, {
+      const backendUrl = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
+      const response = await fetch(`${backendUrl}/auth/verify-admin-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: userEmail, 
-          code: inputCode 
+        credentials: 'include',
+        body: JSON.stringify({
+          email: userEmail,
+          code: inputCode
         })
       });
 
@@ -70,7 +71,7 @@ export function AdminCodeModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div 
+      <div
         className="relative w-full max-w-md overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
@@ -80,10 +81,10 @@ export function AdminCodeModal({
         }}
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500"></div>
-        
+
         <div className="p-8">
           <div className="text-center mb-6">
-            <div 
+            <div
               className="w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center"
               style={{
                 background: isEntryMode ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -94,9 +95,9 @@ export function AdminCodeModal({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
             </div>
-            <h2 
+            <h2
               className="text-2xl font-bold mb-2"
-              style={{ 
+              style={{
                 fontFamily: "'Space Grotesk', sans-serif",
                 background: 'linear-gradient(135deg, #fff 0%, #c4b5fd 100%)',
                 WebkitBackgroundClip: 'text',
@@ -106,8 +107,8 @@ export function AdminCodeModal({
               {isEntryMode ? 'Verify Educator Status' : 'Educator Access Code'}
             </h2>
             <p className="text-violet-300 text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>
-              {isEntryMode 
-                ? `Welcome ${userName || 'Educator'}. Please enter your access code to proceed.` 
+              {isEntryMode
+                ? `Welcome ${userName || 'Educator'}. Please enter your access code to proceed.`
                 : 'Share this code with educators to grant them admin access'}
             </p>
           </div>
@@ -120,7 +121,7 @@ export function AdminCodeModal({
                 onChange={(e) => setInputCode(e.target.value.toUpperCase())}
                 placeholder="ENTER CODE"
                 className="w-full p-4 rounded-xl bg-black/30 border border-violet-500/30 text-white text-center text-xl font-mono tracking-[0.3em] focus:outline-none focus:border-cyan-400 transition-colors"
-                maxLength={8}
+                maxLength={20}
               />
               {error && <p className="text-rose-400 text-sm text-center font-bold">{error}</p>}
               <button
@@ -137,7 +138,7 @@ export function AdminCodeModal({
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 ) : 'Verify & Continue'}
               </button>
-              <button 
+              <button
                 onClick={onClose}
                 className="w-full text-violet-400 text-sm font-medium hover:text-violet-200 transition-colors"
               >
@@ -146,7 +147,7 @@ export function AdminCodeModal({
             </div>
           ) : (
             <>
-              <div 
+              <div
                 className="relative p-4 rounded-xl mb-6"
                 style={{
                   background: 'rgba(0, 0, 0, 0.3)',
@@ -154,7 +155,7 @@ export function AdminCodeModal({
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <code 
+                  <code
                     className="text-2xl font-mono tracking-wider text-cyan-400"
                     style={{ letterSpacing: '0.2em' }}
                   >
@@ -176,7 +177,7 @@ export function AdminCodeModal({
                 </div>
               </div>
 
-              <div 
+              <div
                 className="p-4 rounded-xl mb-6"
                 style={{
                   background: 'rgba(251, 191, 36, 0.1)',

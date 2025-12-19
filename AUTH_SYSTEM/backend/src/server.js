@@ -112,10 +112,20 @@ app.get('/auth/google/callback', async (req, res) => {
                 })
             });
 
+            const saveResult = await saveResponse.json();
+
             if (saveResponse.ok) {
                 console.log('✅ User saved to database');
+            } else if (saveResult.error === 'ROLE_MISMATCH') {
+                // Role mismatch - redirect with error
+                console.log(`❌ Role mismatch for ${profile.email}`);
+                const errorMsg = encodeURIComponent(saveResult.message);
+                return res.redirect(
+                    `${process.env.FRONTEND_ORIGIN}?error=role_mismatch&message=${errorMsg}&existingRole=${saveResult.existingRole}`
+                );
             } else {
-                console.log('⚠️ Failed to save user to database, but continuing...');
+                console.log('⚠️ Failed to save user:', saveResult.error);
+                // Continue anyway for backward compatibility
             }
         } catch (dbError) {
             console.error('⚠️ Database save error:', dbError.message);

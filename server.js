@@ -6,6 +6,9 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { evaluateCode } from './evaluator.js';
+import { generateHintsForQuestion, saveHintsToDatabase } from './services/hintService.js';
+import { updateStudentRanking, getLeaderboard, getStudentRank } from './services/rankingService.js';
+import { awardXP, getStudentLevel } from './services/levelingService.js';
 
 dotenv.config();
 
@@ -59,6 +62,7 @@ function setCors(req, res) {
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-email, x-user-role');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
@@ -79,7 +83,7 @@ export const server = http.createServer(async (req, res) => {
   if (pathname === '/api/questions' && req.method === 'GET') {
     try {
       // Try DB first
-      const dbQuestions = await prisma.question.findMany({
+      const dbQuestions = await prisma.questions.findMany({
         select: {
           id: true,
           title: true,
@@ -111,7 +115,7 @@ export const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/api/questions/') && req.method === 'GET') {
     const id = pathname.replace('/api/questions/', '');
     try {
-      const question = await prisma.question.findUnique({
+      const question = await prisma.questions.findUnique({
         where: { id },
         select: {
           id: true,
@@ -169,12 +173,12 @@ export const server = http.createServer(async (req, res) => {
   if (pathname === '/api/questions/random' && req.method === 'GET') {
     try {
       // Try to get a random question from database
-      const count = await prisma.question.count();
+      const count = await prisma.questions.count();
 
       if (count > 0) {
         // Get random question from database
         const randomIndex = Math.floor(Math.random() * count);
-        const randomQuestion = await prisma.question.findMany({
+        const randomQuestion = await prisma.questions.findMany({
           skip: randomIndex,
           take: 1,
           select: {
@@ -214,6 +218,97 @@ export const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(questions[0]));
     }
+    return;
+  }
+
+  // ============================================
+  // AUTHENTICATION: Save/Update User with Role Locking
+  // ============================================
+  if (pathname === '/api/auth/save-user' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const { email, name, google_id, role } = JSON.parse(body);
+
+        if (!email || !role) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Email and role are required'
+          }));
+          return;
+        }
+
+        // Check if user exists
+        const existingUser = await prisma.auth_users.findUnique({
+          where: { email }
+        });
+
+        if (existingUser) {
+          // ROLE LOCKING: Verify role matches existing role
+          if (existingUser.role !== role) {
+            console.log(`❌ Role mismatch for ${email}: existing=${existingUser.role}, requested=${role}`);
+            res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({
+              success: false,
+              error: 'ROLE_MISMATCH',
+              message: `This account is registered as ${existingUser.role}. You cannot login as ${role}.`,
+              existingRole: existingUser.role,
+              requestedRole: role
+            }));
+            return;
+          }
+
+          // Update existing user (same role)
+          const updated = await prisma.auth_users.update({
+            where: { email },
+            data: {
+              name: name || existingUser.name,
+              google_id: google_id || existingUser.google_id,
+              last_login_at: new Date()
+            }
+          });
+
+          console.log(`✅ Updated user: ${email} (${role})`);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            user: updated,
+            isNewUser: false
+          }));
+        } else {
+          // Create new user with specified role (role locked on creation)
+          const newUser = await prisma.auth_users.create({
+            data: {
+              email,
+              name,
+              google_id,
+              role, // Role is locked to this value forever
+              auth_provider: 'google',
+              created_at: new Date(),
+              last_login_at: new Date()
+            }
+          });
+
+          console.log(`✅ Created new user: ${email} (${role})`);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            user: newUser,
+            isNewUser: true
+          }));
+        }
+      } catch (error) {
+        console.error('❌ Error saving user:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Database error',
+          details: error.message
+        }));
+      }
+    });
     return;
   }
 
@@ -283,14 +378,14 @@ The testCases array is MANDATORY and must have at least 3 test cases with valid 
             messages: [
               {
                 role: 'system',
-                content: `You are an expert technical interviewer. Generate high-quality ${type} interview questions. Always respond with valid JSON only, no markdown formatting.`
+                content: `You are an expert technical interviewer. Generate high-quality ${type} interview questions. Always respond with valid JSON only, no markdown formatting. Generate UNIQUE and CREATIVE questions - avoid repeating common problems. Request ID: ${Date.now()}`
               },
               {
                 role: 'user',
                 content: prompt
               }
             ],
-            temperature: 0.9,
+            temperature: 1.1,
             max_tokens: 2048
           })
         });
@@ -317,6 +412,79 @@ The testCases array is MANDATORY and must have at least 3 test cases with valid 
         // Validate JSON before sending
         const parsedData = JSON.parse(text);
         console.log('✅ Parsed AI response:', JSON.stringify(parsedData, null, 2));
+
+        // ============================================
+        // AUTO-SAVE TO DATABASE (with duplicate check)
+        // ============================================
+        try {
+          console.log('💾 Checking for duplicates and saving question...');
+
+          // Check for exact duplicate by title
+          const existingQuestion = await prisma.questions.findFirst({
+            where: {
+              title: parsedData.title
+            }
+          });
+
+          if (existingQuestion) {
+            console.log(`⚠️ Duplicate question detected: "${parsedData.title}" already exists (ID: ${existingQuestion.id})`);
+            console.log('📋 Skipping database save, returning existing question');
+
+            // Return existing question instead of creating duplicate
+            parsedData.id = existingQuestion.id;
+            parsedData.source = 'ai';
+            parsedData.isDuplicate = true;
+          } else {
+            // No duplicate found, save new question
+            const questionId = crypto.randomUUID();
+
+            // Save question
+            await prisma.questions.create({
+              data: {
+                id: questionId,
+                domain,
+                difficulty,
+                type,
+                title: parsedData.title,
+                prompt: parsedData.description,
+                constraints: JSON.stringify(parsedData.constraints || []),
+                examples: JSON.stringify(parsedData.examples || []),
+                reference_solution: parsedData.solution || '',
+                starter_code: parsedData.starterCode || '',
+                source: 'ai' // Mark as AI-generated
+              }
+            });
+
+            // Save test cases
+            if (parsedData.testCases && parsedData.testCases.length > 0) {
+              await prisma.test_cases.createMany({
+                data: parsedData.testCases.map((tc, i) => ({
+                  id: crypto.randomUUID(),
+                  question_id: questionId,
+                  stdin: tc.input || '',
+                  stdout: tc.expected || '',
+                  order_index: i
+                }))
+              });
+              console.log(`✅ Saved ${parsedData.testCases.length} test cases`);
+            }
+
+            // Generate and save hints
+            const hints = await generateHintsForQuestion(parsedData.title, parsedData.description);
+            await saveHintsToDatabase(questionId, hints);
+            console.log(`✅ Saved ${hints.length} AI-generated hints`);
+
+            console.log(`✅ New question saved with ID: ${questionId}`);
+
+            // Add question ID to response
+            parsedData.id = questionId;
+            parsedData.source = 'ai';
+            parsedData.isDuplicate = false;
+          }
+        } catch (saveError) {
+          console.error('⚠️ Error saving to database:', saveError);
+          // Continue even if save fails - return the generated question
+        }
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(parsedData));
@@ -480,6 +648,143 @@ Return ONLY valid JSON:
 
         console.log('✅ Evaluation complete:', { score, passedTests, totalTests });
 
+        // ============================================
+        // STORE ATTEMPT & UPDATE RANKINGS
+        // ============================================
+        try {
+          const studentEmail = req.headers['x-user-email'];
+          const questionId = question.id || payload.questionId;
+
+          console.log('🔍 DEBUG - Attempting to save:');
+          console.log('   Student Email:', studentEmail);
+          console.log('   Question ID:', questionId);
+          console.log('   Score:', score);
+
+          if (!studentEmail) {
+            console.error('❌ ERROR: No student email in headers!');
+            console.error('   Headers:', req.headers);
+          }
+
+          if (!questionId) {
+            console.error('❌ ERROR: No question ID!');
+            console.error('   question.id:', question.id);
+            console.error('   payload.questionId:', payload.questionId);
+          }
+
+          if (studentEmail && questionId) {
+            console.log('💾 Saving attempt and updating rankings...');
+
+            // CRITICAL: Verify question exists in database before saving
+            const questionExists = await prisma.questions.findUnique({
+              where: { id: questionId },
+              select: { id: true, title: true }
+            });
+
+            if (!questionExists) {
+              console.error(`❌ ERROR: Question ID ${questionId} does not exist in database!`);
+              console.error('   Cannot save attempt - foreign key constraint would fail');
+              console.error('   Skipping database save but returning evaluation result');
+              // Don't throw error - just skip save and return evaluation
+            } else {
+              console.log(`✅ Question verified: ${questionExists.title}`);
+
+              // Save attempt to database
+              const attemptId = crypto.randomUUID();
+              await prisma.attempts.create({
+                data: {
+                  id: attemptId,
+                  student_email: studentEmail,
+                  question_id: questionId,
+                  submission: userAnswer,
+                  score: score / 100,
+                  feedback: JSON.stringify(evaluation)
+                }
+              });
+              console.log(`✅ Attempt saved with ID: ${attemptId}`);
+
+              // Update student rankings
+              const rankingResult = await updateStudentRanking(studentEmail, score);
+              console.log(`✅ Rankings updated: ${rankingResult.newTotalScore} total score, ${rankingResult.newQuestionsSolved} solved`);
+
+              // Award XP and check for level up
+              const xpResult = await awardXP(studentEmail, score);
+              evaluation.xpAwarded = xpResult.xpAwarded;
+              evaluation.totalXP = xpResult.totalXP;
+              evaluation.currentLevel = xpResult.currentLevel;
+              evaluation.leveledUp = xpResult.leveledUp;
+              if (xpResult.newBadges.length > 0) {
+                evaluation.newBadges = xpResult.newBadges;
+              }
+              console.log(`✅ XP awarded: ${xpResult.xpAwarded} (Total: ${xpResult.totalXP}, Level: ${xpResult.currentLevel})`);
+
+              // Mark question as solved if score >= 70%
+              if (score >= 70) {
+                await prisma.solved_questions.upsert({
+                  where: {
+                    student_email_question_id: {
+                      student_email: studentEmail,
+                      question_id: questionId
+                    }
+                  },
+                  update: {
+                    score,
+                    attempts: { increment: 1 }
+                  },
+                  create: {
+                    id: crypto.randomUUID(),
+                    student_email: studentEmail,
+                    question_id: questionId,
+                    score,
+                    attempts: 1
+                  }
+                });
+                console.log(`✅ Question marked as solved`);
+                evaluation.questionSolved = true;
+
+                // Mark assignment as completed if this was an assigned question
+                try {
+                  const assignment = await prisma.question_assignments.findFirst({
+                    where: {
+                      student_email: studentEmail,
+                      question_id: questionId,
+                      completed: false // Only update if not already completed
+                    }
+                  });
+
+                  if (assignment) {
+                    await prisma.question_assignments.update({
+                      where: { id: assignment.id },
+                      data: {
+                        completed: true,
+                        completed_at: new Date()
+                      }
+                    });
+                    console.log(`✅ Assignment marked as completed`);
+                    evaluation.assignmentCompleted = true;
+                  }
+                } catch (assignmentError) {
+                  console.error('⚠️ Error updating assignment:', assignmentError);
+                  // Continue even if assignment update fails
+                }
+              }
+
+              // Generate hint for wrong answer if score < 70%
+              if (score < 70 && testResults.length > 0) {
+                const failedTests = testResults.filter(t => !t.passed);
+                if (failedTests.length > 0) {
+                  const { generateHintForWrongAnswer } = await import('./services/hintService.js');
+                  const hint = await generateHintForWrongAnswer(question, userAnswer, failedTests);
+                  evaluation.hint = hint;
+                  console.log(`✅ Generated hint for wrong answer`);
+                }
+              }
+            }
+          }
+        } catch (saveError) {
+          console.error('⚠️ Error saving attempt/updating rankings:', saveError);
+          // Continue even if save fails - return the evaluation
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(evaluation));
       } catch (err) {
@@ -487,6 +792,415 @@ Return ONLY valid JSON:
         res.end(JSON.stringify({ error: (err && err.message) || String(err) }));
       }
     });
+    return;
+  }
+
+  // ============================================
+  // NEW ENDPOINTS: RANKINGS & LEADERBOARD
+  // ============================================
+
+  // GET /api/rankings - Get global leaderboard
+  if (pathname === '/api/rankings' && req.method === 'GET') {
+    try {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const limit = parseInt(url.searchParams.get('limit') || '10');
+
+      const leaderboard = await getLeaderboard(limit);
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ leaderboard }));
+    } catch (err) {
+      console.error('Error getting leaderboard:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch leaderboard' }));
+    }
+    return;
+  }
+
+  // GET /api/rankings/:email - Get student's rank
+  if (pathname.startsWith('/api/rankings/') && req.method === 'GET') {
+    try {
+      const email = decodeURIComponent(pathname.replace('/api/rankings/', ''));
+      const rankData = await getStudentRank(email);
+
+      if (!rankData) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Student not found' }));
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(rankData));
+    } catch (err) {
+      console.error('Error getting student rank:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch student rank' }));
+    }
+    return;
+  }
+
+  // GET /api/student/progress/:email - Get student progress dashboard
+  if (pathname.startsWith('/api/student/progress/') && req.method === 'GET') {
+    try {
+      const email = decodeURIComponent(pathname.replace('/api/student/progress/', ''));
+
+      // Get level info
+      const levelData = await getStudentLevel(email);
+
+      // Get rank info
+      const rankData = await getStudentRank(email);
+
+      // Get solved questions
+      const solvedQuestions = await prisma.solved_questions.findMany({
+        where: { student_email: email },
+        include: {
+          question: {
+            select: {
+              title: true,
+              difficulty: true,
+              domain: true
+            }
+          }
+        },
+        orderBy: { solved_at: 'desc' },
+        take: 20
+      });
+
+      // Get recent attempts
+      const recentAttempts = await prisma.attempts.findMany({
+        where: { student_email: email },
+        include: {
+          question: {
+            select: {
+              title: true,
+              difficulty: true
+            }
+          }
+        },
+        orderBy: { created_at: 'desc' },
+        take: 10
+      });
+
+      const progress = {
+        email,
+        level: levelData?.currentLevel || 1,
+        xp: levelData?.xpPoints || 0,
+        nextLevelXP: levelData?.nextLevelXP || 100,
+        progressToNextLevel: levelData?.progressToNextLevel || 0,
+        badges: levelData?.badges || [],
+        rank: rankData?.rank || null,
+        totalStudents: rankData?.totalStudents || 0,
+        totalScore: rankData?.totalScore || 0,
+        questionsSolved: rankData?.questionsSolved || 0,
+        avgScore: rankData?.avgScore || 0,
+        solvedQuestions: solvedQuestions.map(sq => ({
+          title: sq.question.title,
+          difficulty: sq.question.difficulty,
+          domain: sq.question.domain,
+          score: sq.score,
+          solvedAt: sq.solved_at,
+          attempts: sq.attempts
+        })),
+        recentActivity: recentAttempts.map(a => ({
+          questionTitle: a.question.title,
+          difficulty: a.question.difficulty,
+          score: Math.round(parseFloat(a.score) * 100),
+          date: a.created_at
+        }))
+      };
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(progress));
+    } catch (err) {
+      console.error('Error getting student progress:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch student progress' }));
+    }
+    return;
+  }
+
+  // GET /api/student/assigned-questions - Get assigned questions for student
+  if (pathname === '/api/student/assigned-questions' && req.method === 'GET') {
+    try {
+      const studentEmail = req.headers['x-user-email'];
+
+      if (!studentEmail) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Student email required' }));
+        return;
+      }
+
+      console.log(`📚 Fetching assigned questions for ${studentEmail}`);
+
+      // Fetch all question assignments for this student
+      const assignments = await prisma.question_assignments.findMany({
+        where: {
+          student_email: studentEmail
+        },
+        include: {
+          question: {
+            select: {
+              id: true,
+              title: true,
+              difficulty: true,
+              domain: true,
+              prompt: true,
+              type: true,
+              constraints: true,
+              examples: true,
+              test_cases: {
+                select: {
+                  id: true,
+                  stdin: true,
+                  stdout: true,
+                  order_index: true
+                },
+                orderBy: {
+                  order_index: 'asc'
+                }
+              }
+            }
+          }
+        },
+        orderBy: {
+          assigned_at: 'desc'
+        }
+      });
+
+      console.log(`✅ Found ${assignments.length} assignments`);
+
+      // Group assignments by type
+      const aiPractice = [];
+      const adminPractice = [];
+      const testQuestions = [];
+
+      assignments.forEach(assignment => {
+        // Parse JSON fields if they're strings
+        let constraints = assignment.question.constraints;
+        let examples = assignment.question.examples;
+
+        if (typeof constraints === 'string') {
+          try {
+            constraints = JSON.parse(constraints);
+          } catch (e) {
+            constraints = [];
+          }
+        }
+
+        if (typeof examples === 'string') {
+          try {
+            examples = JSON.parse(examples);
+          } catch (e) {
+            examples = [];
+          }
+        }
+
+        // Format test cases for evaluator (convert stdin/stdout to input/expected)
+        const testCases = (assignment.question.test_cases || []).map(tc => ({
+          input: tc.stdin,
+          expected: tc.stdout,
+          expectedOutput: tc.stdout // Add alias for compatibility
+        }));
+
+        const questionData = {
+          id: assignment.question.id,
+          title: assignment.question.title,
+          difficulty: assignment.question.difficulty,
+          domain: assignment.question.domain,
+          prompt: assignment.question.prompt,
+          description: assignment.question.prompt, // Add description alias for frontend
+          type: assignment.question.type,
+          constraints: constraints || [],
+          examples: examples || [],
+          testCases: testCases, // Add formatted test cases
+          assignmentId: assignment.id,
+          assignedAt: assignment.assigned_at,
+          dueDate: assignment.due_date,
+          completed: assignment.completed,
+          completedAt: assignment.completed_at
+        };
+
+        // Group by assignment type and source
+        if (assignment.assignment_type === 'test') {
+          testQuestions.push(questionData);
+        } else if (assignment.source === 'ai') {
+          aiPractice.push(questionData);
+        } else {
+          adminPractice.push(questionData);
+        }
+      });
+
+      const response = {
+        assignments: {
+          aiPractice,
+          adminPractice,
+          test: testQuestions
+        },
+        total: assignments.length
+      };
+
+      console.log(`📊 Grouped: ${adminPractice.length} admin, ${aiPractice.length} AI, ${testQuestions.length} tests`);
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(response));
+    } catch (err) {
+      console.error('❌ Error fetching assigned questions:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch assigned questions', details: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/student/my-progress - Get student's progress statistics
+  if (pathname === '/api/student/my-progress' && req.method === 'GET') {
+    try {
+      const studentEmail = req.headers['x-user-email'];
+
+      if (!studentEmail) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Student email required' }));
+        return;
+      }
+
+      console.log(`📊 Fetching progress for ${studentEmail}`);
+
+      // Get all assignments for this student
+      const allAssignments = await prisma.question_assignments.findMany({
+        where: { student_email: studentEmail }
+      });
+
+      const total = allAssignments.length;
+      const completed = allAssignments.filter(a => a.completed).length;
+      const pending = total - completed;
+
+      // Calculate overdue count
+      const now = new Date();
+      const overdue = allAssignments.filter(a =>
+        !a.completed && a.due_date && new Date(a.due_date) < now
+      ).length;
+
+      // Calculate progress percentage
+      const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      // Get solved questions count and average score
+      const solvedQuestions = await prisma.solved_questions.findMany({
+        where: { student_email: studentEmail }
+      });
+
+      const questionsSolved = solvedQuestions.length;
+      const averageScore = questionsSolved > 0
+        ? Math.round(solvedQuestions.reduce((sum, q) => sum + q.score, 0) / questionsSolved)
+        : 0;
+
+      // Get XP and level data
+      const levelData = await prisma.student_levels.findUnique({
+        where: { student_email: studentEmail }
+      });
+
+      // Get ranking data
+      const rankingData = await prisma.student_rankings.findUnique({
+        where: { student_email: studentEmail }
+      });
+
+      const response = {
+        total,
+        completed,
+        pending,
+        overdue,
+        progress,
+        questionsSolved,
+        averageScore,
+        totalScore: rankingData?.total_score || 0,
+        xp: levelData?.xp_points || 0,
+        level: levelData?.current_level || 1,
+        rank: rankingData?.rank || null
+      };
+
+      console.log(`✅ Progress: ${completed}/${total} assignments, ${questionsSolved} solved`);
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(response));
+    } catch (err) {
+      console.error('❌ Error fetching progress:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch progress', details: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/admin/suggested-questions - Get AI-generated questions for admin
+  if (pathname === '/api/admin/suggested-questions' && req.method === 'GET') {
+    try {
+      const user = {
+        email: req.headers['x-user-email'],
+        role: req.headers['x-user-role'] || 'student'
+      };
+
+      if (user.role !== 'admin') {
+        res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Admin access required' }));
+        return;
+      }
+
+      // Get all AI-generated questions
+      const aiQuestions = await prisma.questions.findMany({
+        where: { source: 'ai' },
+        include: {
+          test_cases: true,
+          hints: true,
+          _count: {
+            select: {
+              question_assignments: true,
+              attempts: true,
+              solved_questions: true
+            }
+          }
+        },
+        orderBy: { created_at: 'desc' },
+        take: 50
+      });
+
+      const suggestions = aiQuestions.map(q => ({
+        id: q.id,
+        title: q.title,
+        domain: q.domain,
+        difficulty: q.difficulty,
+        type: q.type,
+        createdAt: q.created_at,
+        testCasesCount: q.test_cases.length,
+        hintsCount: q.hints.length,
+        assignedTo: q._count.question_assignments,
+        attemptCount: q._count.attempts,
+        solvedBy: q._count.solved_questions
+      }));
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ suggestions }));
+    } catch (err) {
+      console.error('Error getting suggested questions:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch suggested questions' }));
+    }
+    return;
+  }
+
+  // GET /api/hints/:questionId - Get hints for a question
+  if (pathname.startsWith('/api/hints/') && req.method === 'GET') {
+    try {
+      const questionId = pathname.replace('/api/hints/', '');
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const level = url.searchParams.get('level');
+
+      const { getQuestionHints } = await import('./services/hintService.js');
+      const hints = await getQuestionHints(questionId, level ? parseInt(level) : null);
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ hints }));
+    } catch (err) {
+      console.error('Error getting hints:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Failed to fetch hints' }));
+    }
     return;
   }
 
@@ -1255,3 +1969,4 @@ if (process.env.START_SERVER !== 'false') {
     console.log(`[api] listening on http://localhost:${PORT}`);
   });
 }
+
