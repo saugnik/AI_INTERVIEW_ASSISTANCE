@@ -15,6 +15,7 @@ async function main() {
     await prisma.questions.deleteMany({});
     await prisma.users.deleteMany({});
 
+
     // Create demo users
     console.log('👤 Creating users...');
     const demoUser = await prisma.users.create({
