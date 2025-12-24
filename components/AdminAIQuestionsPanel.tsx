@@ -16,13 +16,29 @@ interface AIQuestion {
     solvedBy: number;
 }
 
+interface Student {
+    email: string;
+    name: string;
+    assignedQuestions: number;
+    completedQuestions: number;
+    progress: number;
+}
+
 export default function AdminAIQuestionsPanel() {
     const [questions, setQuestions] = useState<AIQuestion[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [assignmentType, setAssignmentType] = useState<'practice' | 'test'>('practice');
+
+    const API_URL = 'http://localhost:3001';
+    const userEmail = localStorage.getItem('userEmail') || '';
 
     useEffect(() => {
         fetchAIQuestions();
+        fetchStudents();
     }, []);
 
     const fetchAIQuestions = async () => {
@@ -39,6 +55,60 @@ export default function AdminAIQuestionsPanel() {
             console.error('Error fetching AI questions:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchStudents = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/admin/students`, {
+                headers: {
+                    'x-user-email': userEmail,
+                    'x-user-role': 'admin'
+                }
+            });
+            const data = await response.json();
+            setStudents(data.students || []);
+        } catch (error) {
+            console.error('Error fetching students:', error);
+        }
+    };
+
+    const handleAssignQuestion = async () => {
+        if (!selectedQuestion || !selectedStudent) {
+            alert('Please select both a question and a student');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/assign-question`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-email': userEmail,
+                    'x-user-role': 'admin'
+                },
+                body: JSON.stringify({
+                    questionId: selectedQuestion,
+                    studentEmail: selectedStudent,
+                    assignmentType: assignmentType,
+                    source: 'ai'
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                alert('Question assigned successfully!');
+                setShowAssignModal(false);
+                setSelectedQuestion(null);
+                setSelectedStudent(null);
+                fetchAIQuestions(); // Refresh to update assignment counts
+                fetchStudents(); // Refresh student data
+            } else {
+                alert('Failed to assign question: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error assigning question:', error);
+            alert('Failed to assign question');
         }
     };
 
@@ -144,7 +214,11 @@ export default function AdminAIQuestionsPanel() {
                                     </div>
                                 </div>
                                 <button
-                                    onClick={() => setSelectedQuestion(question.id)}
+                                    onClick={() => {
+                                        setSelectedQuestion(question.id);
+                                        setAssignmentType('practice');
+                                        setShowAssignModal(true);
+                                    }}
                                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
                                 >
                                     Assign to Students
@@ -196,6 +270,62 @@ export default function AdminAIQuestionsPanel() {
                     ))
                 )}
             </div>
+
+            {/* Assignment Modal */}
+            {showAssignModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                            Assign AI Question as {assignmentType === 'practice' ? '📝 Practice' : '🎯 Test'}
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            {assignmentType === 'practice'
+                                ? 'This AI-generated question will be assigned as practice for the student.'
+                                : 'This AI-generated question will be assigned as a test for evaluation.'}
+                        </p>
+
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Select Student
+                                </label>
+                                <select
+                                    value={selectedStudent || ''}
+                                    onChange={(e) => setSelectedStudent(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:outline-none"
+                                >
+                                    <option value="">Choose a student...</option>
+                                    {students.map((student) => (
+                                        <option key={student.email} value={student.email}>
+                                            {student.name} ({student.email})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowAssignModal(false);
+                                    setSelectedQuestion(null);
+                                    setSelectedStudent(null);
+                                }}
+                                className="flex-1 px-6 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAssignQuestion}
+                                disabled={!selectedStudent}
+                                className="flex-1 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-lg shadow-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                Assign
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
