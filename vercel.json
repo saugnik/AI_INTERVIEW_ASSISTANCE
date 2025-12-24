@@ -1,0 +1,27 @@
+{
+    "name": "ai-interview-app",
+    "version": 2,
+    "builds": [
+        {
+            "src": "package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "dist"
+            }
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/$1"
+        }
+    ],
+    "env": {
+        "VITE_BACKEND_URL": "@backend-url",
+        "VITE_AUTH_BACKEND_URL": "@auth-backend-url"
+    }
+}

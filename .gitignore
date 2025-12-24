@@ -27,3 +27,4 @@ dist-ssr
 *.env
 .env.local
 AUTH_SYSTEM/backend/.env
+.vercel
