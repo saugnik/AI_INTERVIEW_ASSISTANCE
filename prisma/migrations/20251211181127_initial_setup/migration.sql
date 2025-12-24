@@ -1,4 +1,3 @@
--- CreateTable
 CREATE TABLE "attempt_test_results" (
     "id" UUID NOT NULL,
     "attempt_id" UUID NOT NULL,
@@ -11,7 +10,6 @@ CREATE TABLE "attempt_test_results" (
     CONSTRAINT "attempt_test_results_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "attempts" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
@@ -25,7 +23,6 @@ CREATE TABLE "attempts" (
     CONSTRAINT "attempts_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "auth_users" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "google_id" TEXT,
@@ -39,8 +36,6 @@ CREATE TABLE "auth_users" (
 
     CONSTRAINT "auth_users_pkey" PRIMARY KEY ("id")
 );
-
--- CreateTable
 CREATE TABLE "questions" (
     "id" UUID NOT NULL,
     "domain" TEXT NOT NULL,

@@ -5,14 +5,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const prisma = new PrismaClient();
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_EVALUATION_KEY = process.env.GROQ_EVALUATION_KEY || process.env.GROQ_API_KEY;
 
 /**
  * Generate 3-level hints for a question
  */
 export async function generateHintsForQuestion(questionTitle, questionDescription) {
-    if (!GROQ_API_KEY) {
-        console.warn('GROQ_API_KEY not set, using default hints');
+    if (!GROQ_EVALUATION_KEY) {
+        console.warn('GROQ_EVALUATION_KEY not set, using default hints');
         return [
             'Think about the problem constraints and edge cases.',
             'Consider what data structures might help solve this efficiently.',
@@ -37,7 +37,7 @@ Return ONLY valid JSON in this format:
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${GROQ_API_KEY}`
+                'Authorization': `Bearer ${GROQ_EVALUATION_KEY}`
             },
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
@@ -80,7 +80,7 @@ Return ONLY valid JSON in this format:
  * Generate dynamic hint based on wrong answer
  */
 export async function generateHintForWrongAnswer(question, userAnswer, failedTests) {
-    if (!GROQ_API_KEY) {
+    if (!GROQ_EVALUATION_KEY) {
         return 'Review the test cases that failed and check your logic for those specific inputs.';
     }
 
@@ -106,7 +106,7 @@ Provide a specific hint about what might be wrong with their approach. Don't giv
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${GROQ_API_KEY}`
+                'Authorization': `Bearer ${GROQ_EVALUATION_KEY}`
             },
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',

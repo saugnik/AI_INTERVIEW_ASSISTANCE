@@ -67,13 +67,50 @@ export function evaluateCode(userCode, testCases) {
             console.log('Function result:', actualOutput, 'Type:', typeof actualOutput);
 
             const expectedOutput = testCase.expected || testCase.expectedOutput || testCase.output || testCase.stdout;
-            const actualStr = typeof actualOutput === 'object' ? JSON.stringify(actualOutput) : String(actualOutput);
-            const expectedStr = typeof expectedOutput === 'string' && (expectedOutput.startsWith('[') || expectedOutput.startsWith('{'))
-                ? expectedOutput.trim()
-                : typeof expectedOutput === 'object' ? JSON.stringify(expectedOutput) : String(expectedOutput);
 
-            const passed = actualStr === expectedStr;
-            console.log('Comparison:', actualStr, '===', expectedStr, '?', passed);
+            // Normalize both outputs for comparison
+            let actualStr, expectedStr;
+
+            // Handle actual output
+            if (typeof actualOutput === 'object' && actualOutput !== null) {
+                actualStr = JSON.stringify(actualOutput);
+            } else {
+                actualStr = String(actualOutput);
+            }
+
+            // Handle expected output
+            if (typeof expectedOutput === 'string') {
+                // Try to parse as JSON to normalize format
+                try {
+                    const parsed = JSON.parse(expectedOutput);
+                    expectedStr = JSON.stringify(parsed);
+                } catch (e) {
+                    // Not JSON, use as-is
+                    expectedStr = expectedOutput.trim();
+                }
+            } else if (typeof expectedOutput === 'object' && expectedOutput !== null) {
+                expectedStr = JSON.stringify(expectedOutput);
+            } else {
+                expectedStr = String(expectedOutput);
+            }
+
+            // Normalize whitespace in JSON strings for comparison
+            const normalizeJson = (str) => {
+                try {
+                    return JSON.stringify(JSON.parse(str));
+                } catch (e) {
+                    return str;
+                }
+            };
+
+            const normalizedActual = normalizeJson(actualStr);
+            const normalizedExpected = normalizeJson(expectedStr);
+
+            const passed = normalizedActual === normalizedExpected;
+            console.log('Comparison:');
+            console.log('  Actual:', actualStr, '->', normalizedActual);
+            console.log('  Expected:', expectedStr, '->', normalizedExpected);
+            console.log('  Passed?', passed);
 
             if (passed) results.passedTests++;
 

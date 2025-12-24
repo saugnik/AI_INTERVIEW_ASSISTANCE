@@ -20,8 +20,10 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:5173',
 ]);
 
-// Groq API key for REST API calls (OpenAI-compatible format)
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+// Groq API keys for REST API calls (OpenAI-compatible format)
+// Using 2 separate keys to avoid rate limiting and improve performance
+const GROQ_GENERATION_KEY = process.env.GROQ_GENERATION_KEY || process.env.GROQ_API_KEY; // For question generation
+const GROQ_EVALUATION_KEY = process.env.GROQ_EVALUATION_KEY || process.env.GROQ_API_KEY;  // For evaluation & feedback
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -314,9 +316,9 @@ export const server = http.createServer(async (req, res) => {
 
   // Server proxy endpoint: generate a question via Groq AI using a server-side key
   if (pathname === '/api/generate' && req.method === 'POST') {
-    if (!GROQ_API_KEY) {
+    if (!GROQ_GENERATION_KEY) {
       res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ error: 'Server missing GROQ_API_KEY' }));
+      res.end(JSON.stringify({ error: 'Server missing GROQ_GENERATION_KEY' }));
       return;
     }
 
@@ -371,7 +373,7 @@ The testCases array is MANDATORY and must have at least 3 test cases with valid 
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
+            'Authorization': `Bearer ${GROQ_GENERATION_KEY}`
           },
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
@@ -572,7 +574,7 @@ The testCases array is MANDATORY and must have at least 3 test cases with valid 
         let referenceSolution = null;
         let complexityAnalysis = null;
 
-        if (score < 100 && GROQ_API_KEY) {
+        if (score < 100 && GROQ_EVALUATION_KEY) {
           try {
             const solutionPrompt = `Generate an optimal solution for this coding problem:
 
@@ -597,7 +599,7 @@ Return ONLY valid JSON:
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${GROQ_API_KEY}`
+                'Authorization': `Bearer ${GROQ_EVALUATION_KEY}`
               },
               body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
@@ -1125,6 +1127,72 @@ Return ONLY valid JSON:
       res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Failed to fetch progress', details: err.message }));
     }
+    return;
+  }
+
+  // POST /api/student/generate-ai-question - Generate and assign AI question to student
+  if (pathname === '/api/student/generate-ai-question' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const studentEmail = req.headers['x-user-email'];
+
+        if (!studentEmail) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Student email required' }));
+          return;
+        }
+
+        const payload = body ? JSON.parse(body) : {};
+        const { domain = 'Data Structures & Algorithms', difficulty = 'Medium', type = 'Coding' } = payload;
+
+        console.log(`🤖 Generating AI question for ${studentEmail}: ${difficulty} ${type} in ${domain}`);
+
+        // Generate question using existing /api/generate logic
+        const generateResponse = await fetch(`http://localhost:${PORT}/api/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ domain, difficulty, type })
+        });
+
+        if (!generateResponse.ok) {
+          throw new Error('Failed to generate question');
+        }
+
+        const generatedQuestion = await generateResponse.json();
+        console.log(`✅ Generated question: ${generatedQuestion.title} (ID: ${generatedQuestion.id})`);
+
+        // Create assignment with source='ai'
+        const assignmentId = crypto.randomUUID();
+        await prisma.question_assignments.create({
+          data: {
+            id: assignmentId,
+            question_id: generatedQuestion.id,
+            student_email: studentEmail,
+            assigned_by: 'AI System',
+            assignment_type: 'practice',
+            source: 'ai', // CRITICAL: Tag as AI-generated
+            due_date: null
+          }
+        });
+
+        console.log(`✅ Assigned AI question to ${studentEmail} (Assignment ID: ${assignmentId})`);
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          question: generatedQuestion,
+          assignmentId
+        }));
+      } catch (err) {
+        console.error('❌ Error generating AI question:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Failed to generate AI question', details: err.message }));
+      }
+    });
     return;
   }
 
