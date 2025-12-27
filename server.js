@@ -15,6 +15,7 @@ dotenv.config();
 const PORT = process.env.PORT || 3001;
 // Allow production origin and localhost during development
 const ALLOWED_ORIGINS = new Set([
+  'https://ai-interview-app-bay.vercel.app', // Production Vercel frontend
   'https://ai-interview-assistance-xi.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
