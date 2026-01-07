@@ -231,3 +231,36 @@ model solved_questions {
   @@index([question_id])
   @@index([solved_at])
 }
+
+// ============================================
+// VIDEO EXPLANATIONS
+// ============================================
+
+model video_explanations {
+  id                  String   @id @default(uuid())
+  attempt_id          String   @unique
+  question_id         String
+  student_email       String
+  explanation_text    String   // AI-generated explanation script
+  video_url           String?  // URL to generated video
+  video_provider      String   @default("heygen") // "heygen", "tts_slides", etc.
+  video_provider_id   String?  // Provider's video ID for polling status
+  status              String   @default("pending") // "pending", "processing", "completed", "failed"
+  error_message       String?
+  created_at          DateTime @default(now())
+  completed_at        DateTime?
+  
+  @@index([attempt_id])
+  @@index([student_email])
+  @@index([status])
+}
+
+model video_explanation_requests {
+  id            String   @id @default(uuid())
+  student_email String
+  attempt_id    String
+  requested_at  DateTime @default(now())
+  
+  @@index([student_email])
+  @@index([requested_at])
+}

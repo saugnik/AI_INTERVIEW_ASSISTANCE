@@ -69,6 +69,22 @@ function setCors(req, res) {
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
+// Helper to parse cookies from request
+function parseCookies(req) {
+  const cookies = {};
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    cookieHeader.split(';').forEach(cookie => {
+      const [name, ...rest] = cookie.split('=');
+      const value = rest.join('=').trim();
+      if (name) {
+        cookies[name.trim()] = decodeURIComponent(value);
+      }
+    });
+  }
+  return cookies;
+}
+
 export const server = http.createServer(async (req, res) => {
   setCors(req, res);
 
@@ -704,6 +720,9 @@ Return ONLY valid JSON:
                 }
               });
               console.log(`✅ Attempt saved with ID: ${attemptId}`);
+
+              // Add attemptId to evaluation response for video explanation feature
+              evaluation.attemptId = attemptId;
 
               // Update student rankings
               const rankingResult = await updateStudentRanking(studentEmail, score);
@@ -2025,6 +2044,227 @@ Return ONLY valid JSON:
         res.end(JSON.stringify({ error: 'Failed to save user: ' + error.message }));
       }
     });
+    return;
+  }
+
+  // ============================================
+  // VIDEO EXPLANATIONS
+  // ============================================
+
+  // POST /api/student/request-video-explanation
+  if (pathname === '/api/student/request-video-explanation' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const { attemptId, questionId } = JSON.parse(body);
+
+        // Try to get email from cookie first, then fallback to header
+        const cookies = parseCookies(req);
+        const studentEmail = cookies.userEmail || req.headers['x-user-email'];
+
+        if (!studentEmail) {
+          res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Authentication required' }));
+          return;
+        }
+
+        if (!attemptId || !questionId) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'attemptId and questionId are required' }));
+          return;
+        }
+
+        console.log(`📹 Video explanation requested for attempt ${attemptId} by ${studentEmail}`);
+
+        // Import video explanation service
+        const {
+          requestVideoExplanation,
+          getVideoExplanation
+        } = await import('./services/videoExplanationService.js');
+
+        // Check if video already exists
+        const existing = await getVideoExplanation(attemptId);
+        if (existing) {
+          console.log(`✅ Video explanation already exists: ${existing.status}`);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            videoExplanation: existing,
+            message: 'Video explanation already exists'
+          }));
+          return;
+        }
+
+        // Get attempt details
+        const attempt = await prisma.attempts.findUnique({
+          where: { id: attemptId },
+          include: {
+            question: true,
+            attempt_test_results: {
+              include: {
+                test_case: true
+              }
+            }
+          }
+        });
+
+        if (!attempt) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Attempt not found' }));
+          return;
+        }
+
+        // Verify student owns this attempt
+        if (attempt.student_email !== studentEmail) {
+          res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+
+        // Prepare test results
+        const testResults = attempt.attempt_test_results.map(tr => ({
+          passed: tr.passed,
+          input: tr.test_case.stdin,
+          expected: tr.test_case.stdout,
+          actual: tr.stdout || ''
+        }));
+
+        // Request video explanation
+        const result = await requestVideoExplanation(
+          attemptId,
+          questionId,
+          studentEmail,
+          attempt.question,
+          attempt.submission,
+          testResults
+        );
+
+        if (result.success) {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } else {
+          const statusCode = result.rateLimitExceeded ? 429 : 500;
+          res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        }
+      } catch (error) {
+        console.error('❌ Error in /api/student/request-video-explanation:', error);
+        console.error('Stack trace:', error.stack);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Failed to generate video explanation',
+          details: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }));
+      }
+    });
+    return;
+  }
+
+  // GET /api/student/video-explanation/:attemptId
+  if (pathname.startsWith('/api/student/video-explanation/') && req.method === 'GET') {
+    const attemptId = pathname.replace('/api/student/video-explanation/', '').split('?')[0];
+
+    // Try to get email from cookie first, then fallback to header
+    const cookies = parseCookies(req);
+    const studentEmail = cookies.userEmail || req.headers['x-user-email'];
+
+    if (!studentEmail) {
+      res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Authentication required' }));
+      return;
+    }
+
+    try {
+      const { getVideoExplanation, getVideoStatus } = await import('./services/videoExplanationService.js');
+      const videoExplanation = await getVideoExplanation(attemptId);
+
+      if (!videoExplanation) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Video explanation not found' }));
+        return;
+      }
+
+      // Verify student owns this video explanation
+      if (videoExplanation.student_email !== studentEmail) {
+        res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
+
+      // If video is still processing, poll HeyGen for status
+      if (videoExplanation.status === 'processing' && videoExplanation.video_provider_id) {
+        try {
+          console.log(`🔄 Polling HeyGen for video status: ${videoExplanation.video_provider_id}`);
+          const heygenStatus = await getVideoStatus(videoExplanation.video_provider_id);
+
+          // Update database if status changed
+          if (heygenStatus.status === 'completed' && heygenStatus.videoUrl) {
+            console.log(`✅ Video completed! Updating database with URL: ${heygenStatus.videoUrl}`);
+            const updated = await prisma.video_explanations.update({
+              where: { id: videoExplanation.id },
+              data: {
+                status: 'completed',
+                video_url: heygenStatus.videoUrl,
+                completed_at: new Date()
+              }
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(updated));
+            return;
+          } else if (heygenStatus.status === 'failed') {
+            console.log(`❌ Video generation failed: ${heygenStatus.error}`);
+            const updated = await prisma.video_explanations.update({
+              where: { id: videoExplanation.id },
+              data: {
+                status: 'failed',
+                error_message: heygenStatus.error || 'Video generation failed'
+              }
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(updated));
+            return;
+          }
+        } catch (pollError) {
+          console.error('Error polling HeyGen:', pollError);
+          // Continue and return current status from database
+        }
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(videoExplanation));
+    } catch (error) {
+      console.error('❌ Error getting video explanation:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+    return;
+  }
+
+  // GET /api/student/video-status/:videoId - Poll HeyGen video status
+  if (pathname.startsWith('/api/student/video-status/') && req.method === 'GET') {
+    const videoId = pathname.replace('/api/student/video-status/', '').split('?')[0];
+    const studentEmail = req.headers['x-user-email'];
+
+    if (!studentEmail) {
+      res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Authentication required' }));
+      return;
+    }
+
+    try {
+      const { getVideoStatus } = await import('./services/videoExplanationService.js');
+      const status = await getVideoStatus(videoId);
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(status));
+    } catch (error) {
+      console.error('❌ Error getting video status:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
     return;
   }
 

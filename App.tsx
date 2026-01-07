@@ -66,6 +66,7 @@ const App: React.FC = () => {
   const [userAnswer, setUserAnswer] = useState('');
   const [currentEvaluation, setCurrentEvaluation] = useState<Evaluation | null>(null);
   const [history, setHistory] = useState<Attempt[]>([]);
+  const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
 
   const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
 
@@ -106,6 +107,8 @@ const App: React.FC = () => {
 
         localStorage.setItem('userData', JSON.stringify(user));
         localStorage.setItem('userRole', user.role || 'student');
+        // Set cookie for server-side authentication
+        document.cookie = `userEmail=${encodeURIComponent(user.email || '')};path=/;max-age=2592000;SameSite=Lax`;
 
         window.history.replaceState({}, document.title, window.location.pathname);
 
@@ -132,6 +135,8 @@ const App: React.FC = () => {
         setUserId(user.id || null);
         setUserRole((savedRole as 'student' | 'admin') || user.role || 'student');
         setIsAuthenticated(true);
+        // Set cookie for server-side authentication
+        document.cookie = `userEmail=${encodeURIComponent(user.email || '')};path=/;max-age=2592000;SameSite=Lax`;
       } catch (e) {
         console.error('Failed to parse saved user data:', e);
         localStorage.removeItem('userData');
@@ -206,6 +211,11 @@ const App: React.FC = () => {
 
       const evaluation = await response.json();
       setCurrentEvaluation(evaluation);
+
+      // Store attemptId from backend response if available
+      if (evaluation.attemptId) {
+        setCurrentAttemptId(evaluation.attemptId);
+      }
 
       const attempt: Attempt = {
         id: crypto.randomUUID(),
@@ -313,6 +323,8 @@ const App: React.FC = () => {
               onClick={async () => {
                 localStorage.removeItem('userData');
                 localStorage.removeItem('userRole');
+                // Clear cookie
+                document.cookie = 'userEmail=;path=/;max-age=0';
                 setIsAuthenticated(false);
                 setUserName('User');
                 setUserEmail('');
@@ -722,7 +734,14 @@ const App: React.FC = () => {
       case AppView.ATTEMPT: return renderAttempt();
       case AppView.RESULT: return currentEvaluation && currentQuestion ? (
         <div className="py-4">
-          <EvaluationDisplay evaluation={currentEvaluation} question={currentQuestion} onRetry={handleRetry} onNew={handleNewSession} />
+          <EvaluationDisplay
+            evaluation={currentEvaluation}
+            question={currentQuestion}
+            onRetry={handleRetry}
+            onNew={handleNewSession}
+            userEmail={userEmail}
+            attemptId={currentAttemptId || undefined}
+          />
         </div>
       ) : null;
       case AppView.HISTORY: return renderDashboard();
