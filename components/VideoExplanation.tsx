@@ -398,16 +398,30 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
       </div>
 
       {/* Media Player (Video or Audio) */}
-      {showModal && videoData?.status === 'completed' && videoData.video_url && (
-        <MediaPlayer
-          mediaUrl={videoData.video_url}
-          transcript={videoData.explanation_text || ''}
-          duration={300} // Default 5 minutes, will be updated from backend
-          onClose={() => setShowModal(false)}
-          provider={(videoData as any).video_provider || 'google-tts'}
-          fallback={(videoData as any).fallback || false}
-        />
-      )}
+      {showModal && videoData?.status === 'completed' && videoData.video_url && (() => {
+        // Parse audio URL from video_provider_id if it's static-video-tts
+        let audioUrl = null;
+        try {
+          if ((videoData as any).video_provider === 'static-video-tts' && (videoData as any).video_provider_id) {
+            const parsed = JSON.parse((videoData as any).video_provider_id);
+            audioUrl = parsed.audioUrl;
+          }
+        } catch (e) {
+          console.error('Failed to parse video_provider_id:', e);
+        }
+
+        return (
+          <MediaPlayer
+            mediaUrl={videoData.video_url}
+            audioUrl={audioUrl} // Separate audio for static-video-tts
+            transcript={videoData.explanation_text || ''}
+            duration={300} // Default 5 minutes, will be updated from backend
+            onClose={() => setShowModal(false)}
+            provider={(videoData as any).video_provider || 'google-tts'}
+            fallback={(videoData as any).fallback || false}
+          />
+        );
+      })()}
 
       <style jsx>{`
         .video-explanation-container {

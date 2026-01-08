@@ -169,72 +169,37 @@ Keep practicing, stay curious, and happy coding!`;
 }
 
 /**
- * Create AI avatar video using D-ID (with fallback to Google TTS)
- * Primary: D-ID video with lip-sync and gestures
- * Fallback: Google TTS audio if D-ID fails
+ * Create video explanation using static video + Google TTS audio
+ * Uses user-provided video with AI teacher movements + TTS audio overlay
  */
 export async function createVideoWithDID(scriptText, attemptId) {
     try {
-        console.log('🎬 Attempting to create AI avatar video with D-ID...');
+        console.log('🎬 Creating video explanation with static video + TTS audio...');
 
-        // Import D-ID service
-        const { createTalkingAvatar, pollVideoUntilReady } = await import('./didService.js');
+        // Generate audio using Google TTS
+        const audioResult = await createAudioWithGoogleTTS(scriptText, attemptId);
 
-        // Create the video (initiates generation)
-        const initialResult = await createTalkingAvatar(scriptText, attemptId);
+        // Use static video file (user provided)
+        const staticVideoUrl = '/videos/ai-teacher-avatar.mp4';
 
-        if (!initialResult.success) {
-            throw new Error('D-ID video creation failed');
-        }
-
-        // If video is already done (rare)
-        if (initialResult.status === 'completed' && initialResult.videoUrl) {
-            console.log(`✅ D-ID video ready immediately: ${initialResult.videoUrl}`);
-            return {
-                videoId: initialResult.videoId,
-                videoUrl: initialResult.videoUrl,
-                status: 'completed',
-                provider: 'did',
-                success: true
-            };
-        }
-
-        // Video is processing - poll until ready (max 5 minutes)
-        console.log('⏳ D-ID video is processing. Polling for completion...');
-        const finalResult = await pollVideoUntilReady(initialResult.videoId, 60, 5000);
-
-        console.log(`✅ D-ID video generation complete: ${finalResult.videoUrl}`);
+        console.log('✅ Video explanation ready with TTS audio');
+        console.log(`   Video: ${staticVideoUrl}`);
+        console.log(`   Audio: ${audioResult.audioUrl}`);
+        console.log(`   Duration: ${audioResult.duration}s`);
 
         return {
-            videoId: initialResult.videoId,
-            videoUrl: finalResult.videoUrl,
+            videoId: attemptId,
+            videoUrl: staticVideoUrl,
+            audioUrl: audioResult.audioUrl,
+            duration: audioResult.duration,
             status: 'completed',
-            provider: 'did',
+            provider: 'static-video-tts',
             success: true
         };
 
     } catch (error) {
-        console.warn('⚠️ D-ID video generation failed, falling back to Google TTS audio:', error.message);
-
-        // FALLBACK: Use Google TTS audio instead
-        try {
-            console.log('🎤 Falling back to Google TTS audio...');
-            const audioResult = await createAudioWithGoogleTTS(scriptText, attemptId);
-
-            return {
-                audioId: audioResult.audioId,
-                audioUrl: audioResult.audioUrl,
-                duration: audioResult.duration,
-                status: 'completed',
-                provider: 'google-tts',
-                success: true,
-                fallback: true,
-                fallbackReason: error.message
-            };
-        } catch (fallbackError) {
-            console.error('❌ Both D-ID and Google TTS failed:', fallbackError);
-            throw new Error(`Video and audio generation failed: ${fallbackError.message}`);
-        }
+        console.error('❌ Error creating video explanation:', error);
+        throw new Error(`Video explanation failed: ${error.message}`);
     }
 }
 
@@ -326,9 +291,9 @@ export async function saveVideoExplanation(attemptId, questionId, studentEmail, 
                 question_id: questionId,
                 student_email: studentEmail,
                 explanation_text: explanationText,
-                video_url: videoData.audioUrl || videoData.videoUrl || null, // Support both audio and video
-                video_provider: videoData.audioId ? 'google-tts' : 'heygen', // Identify provider
-                video_provider_id: videoData.audioId || videoData.videoId || null,
+                video_url: videoData.videoUrl || videoData.audioUrl || null,
+                video_provider: videoData.provider || 'google-tts', // Use the provider from videoData
+                video_provider_id: JSON.stringify({ videoId: videoData.videoId, audioUrl: videoData.audioUrl }), // Store both IDs
                 status: videoData.status || 'pending',
                 error_message: videoData.error || null,
                 completed_at: videoData.status === 'completed' ? new Date() : null
@@ -446,13 +411,9 @@ export async function requestVideoExplanation(attemptId, questionId, studentEmai
         console.log(`📝 Generating detailed explanation script for attempt ${attemptId}...`);
         const script = await generateExplanationScript(question, userAnswer, testResults);
 
-        // Create AI avatar video with D-ID (with fallback to Google TTS)
-        console.log(`🎬 Creating AI avatar video with D-ID...`);
+        // Create video explanation with static video + TTS audio
+        console.log(`🎬 Creating video explanation with static video + TTS...`);
         const mediaData = await createVideoWithDID(script, attemptId);
-
-        // Determine if we got video or audio (fallback)
-        const isVideo = mediaData.provider === 'did';
-        const isAudio = mediaData.provider === 'google-tts';
 
         // Save to database
         const videoExplanation = await saveVideoExplanation(
@@ -462,41 +423,26 @@ export async function requestVideoExplanation(attemptId, questionId, studentEmai
             script,
             {
                 status: 'completed',
-                videoId: mediaData.videoId || null,
-                videoUrl: mediaData.videoUrl || mediaData.audioUrl || null,
-                audioId: mediaData.audioId || null,
-                audioUrl: mediaData.audioUrl || null,
-                duration: mediaData.duration || null,
-                provider: mediaData.provider,
-                fallback: mediaData.fallback || false,
-                fallbackReason: mediaData.fallbackReason || null
+                videoId: mediaData.videoId,
+                videoUrl: mediaData.videoUrl,
+                audioUrl: mediaData.audioUrl,
+                duration: mediaData.duration,
+                provider: 'static-video-tts'
             }
         );
 
-        if (isVideo) {
-            console.log(`✅ AI avatar video created successfully! URL: ${mediaData.videoUrl}`);
-            return {
-                success: true,
-                videoExplanation,
-                videoId: mediaData.videoId,
-                videoUrl: mediaData.videoUrl,
-                provider: 'did',
-                message: 'AI avatar video ready!'
-            };
-        } else {
-            console.log(`✅ Audio explanation created (D-ID fallback). Duration: ${mediaData.duration}s`);
-            return {
-                success: true,
-                videoExplanation,
-                audioId: mediaData.audioId,
-                audioUrl: mediaData.audioUrl,
-                duration: mediaData.duration,
-                provider: 'google-tts',
-                fallback: true,
-                fallbackReason: mediaData.fallbackReason,
-                message: 'Audio explanation ready (video unavailable)'
-            };
-        }
+        console.log(`✅ Video explanation created! Video: ${mediaData.videoUrl}, Audio: ${mediaData.audioUrl}`);
+
+        return {
+            success: true,
+            videoExplanation,
+            videoId: mediaData.videoId,
+            videoUrl: mediaData.videoUrl,
+            audioUrl: mediaData.audioUrl,
+            duration: mediaData.duration,
+            provider: 'static-video-tts',
+            message: 'Video explanation ready!'
+        };
     } catch (error) {
         console.error('Error requesting video/audio explanation:', error);
         return {

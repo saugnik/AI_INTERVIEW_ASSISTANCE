@@ -5,16 +5,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface MediaPlayerProps {
-    mediaUrl: string; // Can be video URL (D-ID) or audio URL (Google TTS)
+    mediaUrl: string; // Video URL or audio URL
+    audioUrl?: string; // Separate audio URL (for static video + TTS)
     transcript: string;
     duration?: number;
     onClose: () => void;
-    provider?: 'did' | 'google-tts'; // Media provider
+    provider?: 'did' | 'google-tts' | 'static-video-tts'; // Media provider
     fallback?: boolean; // Whether this is a fallback to audio
 }
 
 export function MediaPlayer({
     mediaUrl,
+    audioUrl,
     transcript,
     duration = 300,
     onClose,
@@ -23,22 +25,33 @@ export function MediaPlayer({
 }: MediaPlayerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
-    const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
     const transcriptRef = useRef<HTMLDivElement>(null);
 
-    const isVideo = provider === 'did';
+    const isVideo = provider === 'did' || provider === 'static-video-tts';
+    const hasAudio = provider === 'static-video-tts' && audioUrl;
 
     // Auto-play when component mounts
     useEffect(() => {
-        if (mediaRef.current) {
-            mediaRef.current.play();
-            setIsPlaying(true);
+        if (hasAudio && videoRef.current && audioRef.current) {
+            // Play both video and audio together
+            Promise.all([
+                videoRef.current.play(),
+                audioRef.current.play()
+            ]).then(() => {
+                setIsPlaying(true);
+            }).catch(err => console.error('Autoplay failed:', err));
+        } else if (videoRef.current) {
+            videoRef.current.play().then(() => setIsPlaying(true));
+        } else if (audioRef.current) {
+            audioRef.current.play().then(() => setIsPlaying(true));
         }
-    }, []);
+    }, [hasAudio]);
 
-    // Update current time
+    // Update current time (use audio time if available, otherwise video)
     useEffect(() => {
-        const media = mediaRef.current;
+        const media = hasAudio ? audioRef.current : (videoRef.current || audioRef.current);
         if (!media) return;
 
         const updateTime = () => setCurrentTime(media.currentTime);
@@ -57,7 +70,7 @@ export function MediaPlayer({
             media.removeEventListener('pause', handlePause);
             media.removeEventListener('ended', handleEnded);
         };
-    }, []);
+    }, [hasAudio]);
 
     // Auto-scroll transcript
     useEffect(() => {
@@ -69,11 +82,26 @@ export function MediaPlayer({
     }, [currentTime, duration, isPlaying]);
 
     const togglePlayPause = () => {
-        if (mediaRef.current) {
+        if (hasAudio && videoRef.current && audioRef.current) {
+            // Control both video and audio
             if (isPlaying) {
-                mediaRef.current.pause();
+                videoRef.current.pause();
+                audioRef.current.pause();
             } else {
-                mediaRef.current.play();
+                videoRef.current.play();
+                audioRef.current.play();
+            }
+        } else if (videoRef.current) {
+            if (isPlaying) {
+                videoRef.current.pause();
+            } else {
+                videoRef.current.play();
+            }
+        } else if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
             }
         }
     };
@@ -103,13 +131,42 @@ export function MediaPlayer({
                     {/* Video or Audio Player */}
                     <div className="media-container">
                         {isVideo ? (
-                            <video
-                                ref={mediaRef as React.RefObject<HTMLVideoElement>}
-                                src={mediaUrl}
-                                controls
-                                className="video-player"
-                                poster="/ai_teacher_avatar.png"
-                            />
+                            <div className="video-with-audio">
+                                <video
+                                    ref={videoRef}
+                                    src={mediaUrl}
+                                    controls={!hasAudio} // Only show controls if no separate audio
+                                    className="video-player"
+                                    poster="/ai_teacher_avatar.png"
+                                    muted={hasAudio} // Mute video if using separate audio
+                                    loop={hasAudio} // Loop video if audio is longer
+                                />
+                                {hasAudio && audioUrl && (
+                                    <>
+                                        <audio ref={audioRef} src={audioUrl} />
+                                        <div className="audio-controls">
+                                            <button className="play-pause-btn" onClick={togglePlayPause}>
+                                                {isPlaying ? '⏸️' : '▶️'}
+                                            </button>
+                                            <span className="time-display">{formatTime(currentTime)}</span>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max={duration}
+                                                value={currentTime}
+                                                onChange={(e) => {
+                                                    const newTime = parseFloat(e.target.value);
+                                                    setCurrentTime(newTime);
+                                                    if (videoRef.current) videoRef.current.currentTime = newTime;
+                                                    if (audioRef.current) audioRef.current.currentTime = newTime;
+                                                }}
+                                                className="seek-bar"
+                                            />
+                                            <span className="time-display">{formatTime(duration)}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         ) : (
                             <div className="audio-player-container">
                                 <div className="teacher-avatar-static">
@@ -122,7 +179,7 @@ export function MediaPlayer({
                                         }}
                                     />
                                 </div>
-                                <audio ref={mediaRef as React.RefObject<HTMLAudioElement>} src={mediaUrl} />
+                                <audio ref={audioRef} src={mediaUrl} />
                                 <div className="audio-controls">
                                     <button className="play-pause-btn" onClick={togglePlayPause}>
                                         {isPlaying ? '⏸️' : '▶️'}
@@ -136,8 +193,8 @@ export function MediaPlayer({
                                         onChange={(e) => {
                                             const newTime = parseFloat(e.target.value);
                                             setCurrentTime(newTime);
-                                            if (mediaRef.current) {
-                                                mediaRef.current.currentTime = newTime;
+                                            if (audioRef.current) {
+                                                audioRef.current.currentTime = newTime;
                                             }
                                         }}
                                         className="seek-bar"
