@@ -693,6 +693,9 @@ Return ONLY valid JSON:
           if (studentEmail && questionId) {
             console.log('💾 Saving attempt and updating rankings...');
 
+            // ALWAYS generate attemptId for video explanation feature
+            const attemptId = crypto.randomUUID();
+
             // CRITICAL: Verify question exists in database before saving
             const questionExists = await prisma.questions.findUnique({
               where: { id: questionId },
@@ -703,12 +706,12 @@ Return ONLY valid JSON:
               console.error(`❌ ERROR: Question ID ${questionId} does not exist in database!`);
               console.error('   Cannot save attempt - foreign key constraint would fail');
               console.error('   Skipping database save but returning evaluation result');
+              console.warn(`⚠️ Generated attemptId ${attemptId} for response (not saved to DB)`);
               // Don't throw error - just skip save and return evaluation
             } else {
               console.log(`✅ Question verified: ${questionExists.title}`);
 
               // Save attempt to database
-              const attemptId = crypto.randomUUID();
               await prisma.attempts.create({
                 data: {
                   id: attemptId,
@@ -720,9 +723,6 @@ Return ONLY valid JSON:
                 }
               });
               console.log(`✅ Attempt saved with ID: ${attemptId}`);
-
-              // Add attemptId to evaluation response for video explanation feature
-              evaluation.attemptId = attemptId;
 
               // Update student rankings
               const rankingResult = await updateStudentRanking(studentEmail, score);
@@ -801,6 +801,10 @@ Return ONLY valid JSON:
                 }
               }
             }
+
+            // ALWAYS add attemptId to evaluation response (even if not saved to DB)
+            evaluation.attemptId = attemptId;
+            console.log(`✅ Added attemptId to response: ${attemptId}`);
           }
         } catch (saveError) {
           console.error('⚠️ Error saving attempt/updating rankings:', saveError);

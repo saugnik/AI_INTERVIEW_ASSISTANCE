@@ -113,8 +113,8 @@ const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({ evaluation, quest
         </div>
       </div>
 
-      {/* Video Explanation Section */}
-      {attemptId && userEmail && question.id && (
+      {/* Video Explanation Section - Only for Learning Path (assigned) questions */}
+      {attemptId && userEmail && question.id && !question.id.includes('ai-gen-') && (
         <VideoExplanation
           attemptId={attemptId}
           questionId={question.id}

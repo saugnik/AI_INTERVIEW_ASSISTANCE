@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React, { useState, useEffect } from 'react';
-import { AudioTeacherPlayer } from './AudioTeacherPlayer';
+import { MediaPlayer } from './MediaPlayer';
 
 interface VideoExplanationProps {
   attemptId: string;
@@ -40,9 +40,9 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([
     { name: '📝 Analyzing your answer', status: 'pending', progress: 0 },
     { name: '🤖 Generating explanation script', status: 'pending', progress: 0 },
-    { name: '🎬 Creating video with AI teacher', status: 'pending', progress: 0 },
-    { name: '🎙️ Processing audio', status: 'pending', progress: 0 },
-    { name: '✨ Finalizing video', status: 'pending', progress: 0 }
+    { name: '🎬 Creating AI avatar video', status: 'pending', progress: 0 },
+    { name: '🎙️ Adding voice and lip-sync', status: 'pending', progress: 0 },
+    { name: '✨ Finalizing your explanation', status: 'pending', progress: 0 }
   ]);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -192,14 +192,12 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
       setProgressSteps([...steps]);
     }, 60000);
 
-    // Step 5: Finalizing (60-75 seconds)
     setTimeout(() => {
       steps[4] = { ...steps[4], progress: 50 };
       setProgressSteps([...steps]);
     }, 67000);
   };
 
-  // Update elapsed time every second
   useEffect(() => {
     if (startTime && videoData?.status === 'processing') {
       const timer = setInterval(() => {
@@ -210,7 +208,6 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
     }
   }, [startTime, videoData?.status]);
 
-  // Complete all steps when video is ready
   useEffect(() => {
     if (videoData?.status === 'completed') {
       const steps = progressSteps.map(step => ({
@@ -240,7 +237,6 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
         const data = await response.json();
         setVideoData(data);
 
-        // Stop polling if completed or failed
         if (data.status === 'completed' || data.status === 'failed') {
           if (pollingInterval) {
             clearInterval(pollingInterval);
@@ -401,13 +397,15 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
         )}
       </div>
 
-      {/* Audio Teacher Player */}
+      {/* Media Player (Video or Audio) */}
       {showModal && videoData?.status === 'completed' && videoData.video_url && (
-        <AudioTeacherPlayer
-          audioUrl={videoData.video_url}
+        <MediaPlayer
+          mediaUrl={videoData.video_url}
           transcript={videoData.explanation_text || ''}
           duration={300} // Default 5 minutes, will be updated from backend
           onClose={() => setShowModal(false)}
+          provider={(videoData as any).video_provider || 'google-tts'}
+          fallback={(videoData as any).fallback || false}
         />
       )}
 

@@ -169,6 +169,76 @@ Keep practicing, stay curious, and happy coding!`;
 }
 
 /**
+ * Create AI avatar video using D-ID (with fallback to Google TTS)
+ * Primary: D-ID video with lip-sync and gestures
+ * Fallback: Google TTS audio if D-ID fails
+ */
+export async function createVideoWithDID(scriptText, attemptId) {
+    try {
+        console.log('🎬 Attempting to create AI avatar video with D-ID...');
+
+        // Import D-ID service
+        const { createTalkingAvatar, pollVideoUntilReady } = await import('./didService.js');
+
+        // Create the video (initiates generation)
+        const initialResult = await createTalkingAvatar(scriptText, attemptId);
+
+        if (!initialResult.success) {
+            throw new Error('D-ID video creation failed');
+        }
+
+        // If video is already done (rare)
+        if (initialResult.status === 'completed' && initialResult.videoUrl) {
+            console.log(`✅ D-ID video ready immediately: ${initialResult.videoUrl}`);
+            return {
+                videoId: initialResult.videoId,
+                videoUrl: initialResult.videoUrl,
+                status: 'completed',
+                provider: 'did',
+                success: true
+            };
+        }
+
+        // Video is processing - poll until ready (max 5 minutes)
+        console.log('⏳ D-ID video is processing. Polling for completion...');
+        const finalResult = await pollVideoUntilReady(initialResult.videoId, 60, 5000);
+
+        console.log(`✅ D-ID video generation complete: ${finalResult.videoUrl}`);
+
+        return {
+            videoId: initialResult.videoId,
+            videoUrl: finalResult.videoUrl,
+            status: 'completed',
+            provider: 'did',
+            success: true
+        };
+
+    } catch (error) {
+        console.warn('⚠️ D-ID video generation failed, falling back to Google TTS audio:', error.message);
+
+        // FALLBACK: Use Google TTS audio instead
+        try {
+            console.log('🎤 Falling back to Google TTS audio...');
+            const audioResult = await createAudioWithGoogleTTS(scriptText, attemptId);
+
+            return {
+                audioId: audioResult.audioId,
+                audioUrl: audioResult.audioUrl,
+                duration: audioResult.duration,
+                status: 'completed',
+                provider: 'google-tts',
+                success: true,
+                fallback: true,
+                fallbackReason: error.message
+            };
+        } catch (fallbackError) {
+            console.error('❌ Both D-ID and Google TTS failed:', fallbackError);
+            throw new Error(`Video and audio generation failed: ${fallbackError.message}`);
+        }
+    }
+}
+
+/**
  * Create audio explanation using Google TTS (FREE!)
  * Replaces expensive HeyGen video generation
  */
@@ -365,7 +435,7 @@ export async function requestVideoExplanation(attemptId, questionId, studentEmai
             return {
                 success: true,
                 videoExplanation: existing,
-                message: 'Audio explanation already exists'
+                message: 'Video explanation already exists'
             };
         }
 
@@ -376,9 +446,13 @@ export async function requestVideoExplanation(attemptId, questionId, studentEmai
         console.log(`📝 Generating detailed explanation script for attempt ${attemptId}...`);
         const script = await generateExplanationScript(question, userAnswer, testResults);
 
-        // Create audio with Google TTS (FREE and FAST!)
-        console.log(`🎤 Creating audio with Google TTS...`);
-        const audioData = await createAudioWithGoogleTTS(script, attemptId);
+        // Create AI avatar video with D-ID (with fallback to Google TTS)
+        console.log(`🎬 Creating AI avatar video with D-ID...`);
+        const mediaData = await createVideoWithDID(script, attemptId);
+
+        // Determine if we got video or audio (fallback)
+        const isVideo = mediaData.provider === 'did';
+        const isAudio = mediaData.provider === 'google-tts';
 
         // Save to database
         const videoExplanation = await saveVideoExplanation(
@@ -387,28 +461,48 @@ export async function requestVideoExplanation(attemptId, questionId, studentEmai
             studentEmail,
             script,
             {
-                status: 'completed', // Audio is ready immediately!
-                audioId: audioData.audioId,
-                audioUrl: audioData.audioUrl,
-                duration: audioData.duration
+                status: 'completed',
+                videoId: mediaData.videoId || null,
+                videoUrl: mediaData.videoUrl || mediaData.audioUrl || null,
+                audioId: mediaData.audioId || null,
+                audioUrl: mediaData.audioUrl || null,
+                duration: mediaData.duration || null,
+                provider: mediaData.provider,
+                fallback: mediaData.fallback || false,
+                fallbackReason: mediaData.fallbackReason || null
             }
         );
 
-        console.log(`✅ Audio explanation created successfully! Duration: ${audioData.duration}s`);
-
-        return {
-            success: true,
-            videoExplanation,
-            audioId: audioData.audioId,
-            audioUrl: audioData.audioUrl,
-            duration: audioData.duration,
-            message: 'Audio explanation ready!'
-        };
+        if (isVideo) {
+            console.log(`✅ AI avatar video created successfully! URL: ${mediaData.videoUrl}`);
+            return {
+                success: true,
+                videoExplanation,
+                videoId: mediaData.videoId,
+                videoUrl: mediaData.videoUrl,
+                provider: 'did',
+                message: 'AI avatar video ready!'
+            };
+        } else {
+            console.log(`✅ Audio explanation created (D-ID fallback). Duration: ${mediaData.duration}s`);
+            return {
+                success: true,
+                videoExplanation,
+                audioId: mediaData.audioId,
+                audioUrl: mediaData.audioUrl,
+                duration: mediaData.duration,
+                provider: 'google-tts',
+                fallback: true,
+                fallbackReason: mediaData.fallbackReason,
+                message: 'Audio explanation ready (video unavailable)'
+            };
+        }
     } catch (error) {
-        console.error('Error requesting audio explanation:', error);
+        console.error('Error requesting video/audio explanation:', error);
         return {
             success: false,
             error: error.message
         };
     }
 }
+
