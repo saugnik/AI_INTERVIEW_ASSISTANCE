@@ -7,28 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// AUTHENTICATION & USERS
-// ============================================
-
 model auth_users {
-  email         String    @id  // PRIMARY KEY - using email
-  google_id     String?   @unique
-  name          String?
-  picture       String?
-  created_at    DateTime  @default(now())
-  last_login_at DateTime  @default(now())
-  password_hash String?
-  auth_provider String?   @default("google")
-  role          String    @default("student") // "student" or "admin"
-  
-  // Relations
-  rankings              student_rankings?
-  levels                student_levels?
-  question_assignments  question_assignments[]
-  solved_questions      solved_questions[]
-  attempts              attempts[]
-  
+  google_id            String?                @unique
+  email                String                 @id
+  name                 String?
+  picture              String?
+  created_at           DateTime               @default(now())
+  last_login_at        DateTime               @default(now())
+  password_hash        String?
+  auth_provider        String?                @default("google")
+  role                 String                 @default("student")
+  attempts             attempts[]
+  question_assignments question_assignments[]
+  solved_questions     solved_questions[]
+  levels               student_levels?
+  rankings             student_rankings?
+
   @@index([google_id])
   @@index([role])
 }
@@ -37,7 +31,7 @@ model session {
   sid    String   @id @db.VarChar
   sess   Json     @db.Json
   expire DateTime @db.Timestamp(6)
-  
+
   @@index([expire], map: "IDX_session_expire")
 }
 
@@ -49,14 +43,10 @@ model admin_codes {
   created_at  DateTime  @default(now())
   expires_at  DateTime?
   used_by     String[]  @default([])
-  
+
   @@index([code])
   @@index([is_active])
 }
-
-// ============================================
-// QUESTIONS & TEST CASES
-// ============================================
 
 model questions {
   id                   String                 @id @default(uuid())
@@ -70,15 +60,13 @@ model questions {
   reference_solution   String?
   starter_code         String?
   created_at           DateTime               @default(now())
-  source               String                 @default("admin") // "admin" or "ai"
-  
-  // Relations
-  test_cases           test_cases[]
-  question_assignments question_assignments[]
+  source               String                 @default("admin")
   attempts             attempts[]
-  solved_questions     solved_questions[]
+  question_assignments question_assignments[]
   hints                question_hints[]
-  
+  solved_questions     solved_questions[]
+  test_cases           test_cases[]
+
   @@index([domain])
   @@index([difficulty])
   @@index([source])
@@ -90,48 +78,38 @@ model test_cases {
   stdin                String
   stdout               String
   order_index          Int
-  
-  // Relations
-  question             questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
   attempt_test_results attempt_test_results[]
-  
+  question             questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
   @@index([question_id])
 }
 
 model question_hints {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   question_id String
   hint_text   String
-  hint_level  Int      // 1=gentle, 2=moderate, 3=strong
-  created_at  DateTime @default(now())
-  
-  // Relations
+  hint_level  Int
+  created_at  DateTime  @default(now())
   question    questions @relation(fields: [question_id], references: [id], onDelete: Cascade)
-  
+
   @@index([question_id])
   @@index([hint_level])
 }
 
-// ============================================
-// ASSIGNMENTS
-// ============================================
-
 model question_assignments {
-  id              String    @id @default(uuid())
+  id              String     @id @default(uuid())
   question_id     String
   student_email   String
-  assigned_by     String    // Admin email who assigned
-  assigned_at     DateTime  @default(now())
+  assigned_by     String
+  assigned_at     DateTime   @default(now())
   due_date        DateTime?
-  completed       Boolean   @default(false)
+  completed       Boolean    @default(false)
   completed_at    DateTime?
-  assignment_type String    @default("practice") // "practice" or "test"
-  source          String    @default("admin")    // "ai" or "admin"
-  
-  // Relations
+  assignment_type String     @default("practice")
+  source          String     @default("admin")
   question        questions  @relation(fields: [question_id], references: [id], onDelete: Cascade)
   student         auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
-  
+
   @@unique([question_id, student_email])
   @@index([student_email])
   @@index([question_id])
@@ -139,117 +117,95 @@ model question_assignments {
   @@index([source])
 }
 
-// ============================================
-// ATTEMPTS & RESULTS
-// ============================================
-
 model attempts {
-  id           String   @id @default(uuid())
-  student_email String
-  question_id  String
-  language     String?  @default("javascript")
-  submission   String
-  score        Decimal? @db.Decimal(5, 4)
-  feedback     Json?
-  created_at   DateTime @default(now())
-  
-  // Relations
-  student              auth_users             @relation(fields: [student_email], references: [email], onDelete: Cascade)
-  question             questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  id                   String                 @id @default(uuid())
+  question_id          String
+  language             String?                @default("javascript")
+  submission           String
+  score                Decimal?               @db.Decimal(5, 4)
+  feedback             Json?
+  created_at           DateTime               @default(now())
+  student_email        String
   attempt_test_results attempt_test_results[]
-  
+  question             questions              @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  student              auth_users             @relation(fields: [student_email], references: [email], onDelete: Cascade)
+
   @@index([student_email])
   @@index([question_id])
   @@index([created_at])
 }
 
 model attempt_test_results {
-  id                String   @id @default(uuid())
+  id                String     @id @default(uuid())
   attempt_id        String
   test_case_id      String
   passed            Boolean
   stdout            String?
   stderr            String?
   execution_time_ms Int?
-  
-  // Relations
-  attempt   attempts   @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
-  test_case test_cases @relation(fields: [test_case_id], references: [id], onDelete: Cascade)
-  
+  attempt           attempts   @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
+  test_case         test_cases @relation(fields: [test_case_id], references: [id], onDelete: Cascade)
+
   @@index([attempt_id])
   @@index([test_case_id])
 }
 
-// ============================================
-// STUDENT PROGRESS & RANKINGS
-// ============================================
-
 model student_rankings {
-  student_email    String   @id
-  total_score      Int      @default(0)
+  student_email    String     @id
+  total_score      Int        @default(0)
   rank             Int?
-  questions_solved Int      @default(0)
-  avg_score        Float    @default(0)
-  updated_at       DateTime @updatedAt
-  
-  // Relations
+  questions_solved Int        @default(0)
+  avg_score        Float      @default(0)
+  updated_at       DateTime   @updatedAt
   student          auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
-  
+
   @@index([rank])
   @@index([total_score])
 }
 
 model student_levels {
-  student_email String   @id
-  current_level Int      @default(1)
-  xp_points     Int      @default(0)
-  next_level_xp Int      @default(100)
-  badges        String[] @default([])
-  updated_at    DateTime @updatedAt
-  
-  // Relations
+  student_email String     @id
+  current_level Int        @default(1)
+  xp_points     Int        @default(0)
+  next_level_xp Int        @default(100)
+  badges        String[]   @default([])
+  updated_at    DateTime   @updatedAt
   student       auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
-  
+
   @@index([current_level])
   @@index([xp_points])
 }
 
 model solved_questions {
-  id            String   @id @default(uuid())
+  id            String     @id @default(uuid())
   student_email String
   question_id   String
-  solved_at     DateTime @default(now())
+  solved_at     DateTime   @default(now())
   score         Int
-  attempts      Int      @default(1)
-  
-  // Relations
-  student       auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
+  attempts      Int        @default(1)
   question      questions  @relation(fields: [question_id], references: [id], onDelete: Cascade)
-  
+  student       auth_users @relation(fields: [student_email], references: [email], onDelete: Cascade)
+
   @@unique([student_email, question_id])
   @@index([student_email])
   @@index([question_id])
   @@index([solved_at])
 }
 
-// ============================================
-// VIDEO EXPLANATIONS
-// ============================================
-
 model video_explanations {
-  id                  String   @id @default(uuid())
-  attempt_id          String   @unique
-  question_id         String
-  student_email       String
-  explanation_text    String   // AI-generated explanation script
-  video_url           String?  // URL to generated video
-  video_provider      String   @default("heygen") // "heygen", "tts_slides", etc.
-  video_provider_id   String?  // Provider's video ID for polling status
-  status              String   @default("pending") // "pending", "processing", "completed", "failed"
-  error_message       String?
-  created_at          DateTime @default(now())
-  completed_at        DateTime?
-  
+  id                String    @id @default(uuid())
+  attempt_id        String    @unique
+  question_id       String
+  student_email     String
+  explanation_text  String
+  video_url         String?
+  video_provider    String    @default("heygen")
+  status            String    @default("pending")
+  error_message     String?
+  created_at        DateTime  @default(now())
+  completed_at      DateTime?
+  video_provider_id String?
+
   @@index([attempt_id])
   @@index([student_email])
   @@index([status])
@@ -260,7 +216,7 @@ model video_explanation_requests {
   student_email String
   attempt_id    String
   requested_at  DateTime @default(now())
-  
+
   @@index([student_email])
   @@index([requested_at])
 }

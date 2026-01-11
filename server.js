@@ -9,6 +9,7 @@ import { evaluateCode } from './evaluator.js';
 import { generateHintsForQuestion, saveHintsToDatabase } from './services/hintService.js';
 import { updateStudentRanking, getLeaderboard, getStudentRank } from './services/rankingService.js';
 import { awardXP, getStudentLevel } from './services/levelingService.js';
+import { requestVideoExplanation, getVideoExplanation } from './services/videoExplanationService.js';
 
 dotenv.config();
 
@@ -670,6 +671,10 @@ Return ONLY valid JSON:
         // ============================================
         // STORE ATTEMPT & UPDATE RANKINGS
         // ============================================
+
+        // ALWAYS generate attemptId for video explanation feature
+        const attemptId = crypto.randomUUID();
+
         try {
           const studentEmail = req.headers['x-user-email'];
           const questionId = question.id || payload.questionId;
@@ -692,9 +697,6 @@ Return ONLY valid JSON:
 
           if (studentEmail && questionId) {
             console.log('💾 Saving attempt and updating rankings...');
-
-            // ALWAYS generate attemptId for video explanation feature
-            const attemptId = crypto.randomUUID();
 
             // CRITICAL: Verify question exists in database before saving
             const questionExists = await prisma.questions.findUnique({
@@ -811,6 +813,10 @@ Return ONLY valid JSON:
           // Continue even if save fails - return the evaluation
         }
 
+        // ALWAYS add attemptId to evaluation response (moved outside try-catch)
+        evaluation.attemptId = attemptId;
+        console.log(`✅ Added attemptId to response: ${attemptId}`);
+
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(evaluation));
       } catch (err) {
@@ -818,6 +824,304 @@ Return ONLY valid JSON:
         res.end(JSON.stringify({ error: (err && err.message) || String(err) }));
       }
     });
+    return;
+  }
+
+  // ============================================
+  // SECURITY: Log security violations
+  // ============================================
+  if (pathname === '/api/log-security-violation' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const payload = body ? JSON.parse(body) : {};
+        const { type, timestamp, questionId, attemptId } = payload;
+        const studentEmail = req.headers['x-user-email'];
+
+        if (!studentEmail) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Student email required' }));
+          return;
+        }
+
+        console.log(`🚨 Security violation logged: ${type} by ${studentEmail}`);
+
+        // Log to database (optional - create security_violations table if needed)
+        // For now, just log to console and return success
+        // You can extend this to save to a database table later
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Violation logged',
+          type,
+          timestamp
+        }));
+      } catch (err) {
+        console.error('Error logging security violation:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Failed to log violation' }));
+      }
+    });
+    return;
+  }
+
+  // ============================================
+  // VIDEO EXPLANATION: Generate AI video with TTS
+  // ============================================
+  if (pathname.startsWith('/api/student/video-explanation/') && req.method === 'GET') {
+    try {
+      const attemptId = pathname.replace('/api/student/video-explanation/', '');
+      const studentEmail = req.headers['x-user-email'];
+
+      console.log(`🎬 Video explanation requested for attempt: ${attemptId} by ${studentEmail}`);
+
+      if (!studentEmail) {
+        res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
+
+      // Check if video already exists
+      const existing = await getVideoExplanation(attemptId);
+      if (existing) {
+        console.log(`✅ Video explanation already exists for attempt ${attemptId}`);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          videoUrl: existing.video_url,
+          audioUrl: JSON.parse(existing.video_provider_id || '{}').audioUrl,
+          status: existing.status,
+          explanationText: existing.explanation_text
+        }));
+        return;
+      }
+
+      // Get attempt data from database
+      const attempt = await prisma.attempts.findUnique({
+        where: { id: attemptId },
+        include: {
+          questions: true
+        }
+      });
+
+      if (!attempt) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Attempt not found' }));
+        return;
+      }
+
+      // Parse feedback to get test results
+      const feedback = JSON.parse(attempt.feedback || '{}');
+      const testResults = feedback.testResults || [];
+
+      // Generate video explanation
+      console.log(`🎬 Generating new video explanation for attempt ${attemptId}...`);
+      const result = await requestVideoExplanation(
+        attemptId,
+        attempt.question_id,
+        studentEmail,
+        attempt.questions,
+        attempt.submission,
+        testResults
+      );
+
+      if (result.success) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          videoUrl: result.videoUrl,
+          audioUrl: result.audioUrl,
+          duration: result.duration,
+          status: 'completed',
+          message: 'Video explanation ready!'
+        }));
+      } else {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: false,
+          error: result.error || 'Failed to generate video explanation'
+        }));
+      }
+
+    } catch (err) {
+      console.error('❌ Error in video explanation endpoint:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: err.message || 'Failed to generate video explanation' }));
+    }
+    return;
+  }
+
+  // ============================================
+  // VIDEO EXPLANATION: POST endpoint (accepts data directly, no DB needed)
+  // ============================================
+  if (pathname === '/api/student/request-video-explanation' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        const { attemptId, questionId, question, userAnswer, testResults } = payload;
+        const studentEmail = req.headers['x-user-email'];
+
+        console.log(`🎬 Video explanation requested (direct data) for attempt: ${attemptId}`);
+
+        if (!studentEmail) {
+          res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+
+        if (!question || !userAnswer) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Missing question or userAnswer' }));
+          return;
+        }
+
+        // Check if video already exists in database (optional)
+        try {
+          const existing = await getVideoExplanation(attemptId);
+          if (existing) {
+            console.log(`✅ Video explanation already exists for attempt ${attemptId}`);
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({
+              success: true,
+              videoUrl: existing.video_url,
+              audioUrl: JSON.parse(existing.video_provider_id || '{}').audioUrl,
+              status: existing.status,
+              explanationText: existing.explanation_text
+            }));
+            return;
+          }
+        } catch (dbError) {
+          console.warn('⚠️ Database check failed, proceeding without DB:', dbError.message);
+        }
+
+        // Generate video explanation directly with provided data
+        console.log(`🎬 Generating new video explanation for attempt ${attemptId}...`);
+        const result = await requestVideoExplanation(
+          attemptId,
+          questionId || question.id,
+          studentEmail,
+          question,
+          userAnswer,
+          testResults || []
+        );
+
+        if (result.success) {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            videoUrl: result.videoUrl,
+            audioUrl: result.audioUrl,
+            duration: result.duration,
+            status: 'completed',
+            message: 'Video explanation ready!'
+          }));
+        } else {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: false,
+            error: result.error || 'Failed to generate video explanation'
+          }));
+        }
+
+      } catch (err) {
+        console.error('❌ Error in video explanation POST endpoint:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          error: err.message || 'Failed to generate video explanation',
+          details: err.stack
+        }));
+      }
+    });
+    return;
+  }
+
+  // ============================================
+  // VIDEO EXPLANATION: GET endpoint (requires DB)
+  // ============================================
+  if (pathname.startsWith('/api/student/video-explanation/') && req.method === 'GET') {
+    try {
+      const attemptId = pathname.replace('/api/student/video-explanation/', '');
+      const studentEmail = req.headers['x-user-email'];
+
+      console.log(`🎬 Video explanation requested for attempt: ${attemptId} by ${studentEmail}`);
+
+      if (!studentEmail) {
+        res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
+
+      // Check if video already exists
+      const existing = await getVideoExplanation(attemptId);
+      if (existing) {
+        console.log(`✅ Video explanation already exists for attempt ${attemptId}`);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          videoUrl: existing.video_url,
+          audioUrl: JSON.parse(existing.video_provider_id || '{}').audioUrl,
+          status: existing.status,
+          explanationText: existing.explanation_text
+        }));
+        return;
+      }
+
+      // Get attempt data from database
+      const attempt = await prisma.attempts.findUnique({
+        where: { id: attemptId },
+        include: {
+          questions: true
+        }
+      });
+
+      if (!attempt) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Attempt not found' }));
+        return;
+      }
+
+      // Parse feedback to get test results
+      const feedback = JSON.parse(attempt.feedback || '{}');
+      const testResults = feedback.testResults || [];
+
+      // Generate video explanation
+      console.log(`🎬 Generating new video explanation for attempt ${attemptId}...`);
+      const result = await requestVideoExplanation(
+        attemptId,
+        attempt.question_id,
+        studentEmail,
+        attempt.questions,
+        attempt.submission,
+        testResults
+      );
+
+      if (result.success) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          videoUrl: result.videoUrl,
+          audioUrl: result.audioUrl,
+          duration: result.duration,
+          status: 'completed',
+          message: 'Video explanation ready!'
+        }));
+      } else {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: false,
+          error: result.error || 'Failed to generate video explanation'
+        }));
+      }
+
+    } catch (err) {
+      console.error('❌ Error in video explanation endpoint:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: err.message || 'Failed to generate video explanation' }));
+    }
     return;
   }
 

@@ -24,6 +24,8 @@ import Profile from './components/Profile';
 import StudentProgressDashboard from './components/StudentProgressDashboard';
 import Leaderboard from './components/Leaderboard';
 import AdminAIQuestionsPanel from './components/AdminAIQuestionsPanel';
+import FullscreenWarning from './components/FullscreenWarning';
+import { useFullscreenSecurity, SecurityViolation } from './hooks/useFullscreenSecurity';
 import {
   AwardIcon,
   BookIcon,
@@ -69,6 +71,37 @@ const App: React.FC = () => {
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
 
   const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
+  const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+
+  // Fullscreen Security
+  const {
+    isFullscreen,
+    violations,
+    showWarning,
+    setShowWarning,
+    enterFullscreen
+  } = useFullscreenSecurity({
+    enabled: currentView === AppView.ATTEMPT && userRole === 'student',
+    questionId: currentQuestion?.id,
+    onViolation: async (violation: SecurityViolation) => {
+      // Log violation to backend
+      try {
+        await fetch(`${API_URL}/api/log-security-violation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-email': userEmail
+          },
+          body: JSON.stringify({
+            ...violation,
+            attemptId: currentAttemptId
+          })
+        });
+      } catch (error) {
+        console.error('Failed to log security violation:', error);
+      }
+    }
+  });
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -741,6 +774,7 @@ const App: React.FC = () => {
             onNew={handleNewSession}
             userEmail={userEmail}
             attemptId={currentAttemptId || undefined}
+            userAnswer={userAnswer}  // Pass userAnswer
           />
         </div>
       ) : null;
@@ -858,6 +892,20 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Fullscreen Security Warning Modal */}
+      <FullscreenWarning
+        isOpen={showWarning}
+        violationCount={violations.length}
+        onReturnToFullscreen={() => {
+          setShowWarning(false);
+          enterFullscreen();
+        }}
+        onEndAttempt={() => {
+          setShowWarning(false);
+          setCurrentView(AppView.DASHBOARD);
+        }}
+      />
     </>
   );
 };

@@ -10,6 +10,9 @@ interface VideoExplanationProps {
   questionId: string;
   score: number;
   userEmail: string;
+  question?: any;  // Full question object
+  userAnswer?: string;  // User's submitted answer
+  testResults?: any[];  // Test case results
 }
 
 interface VideoExplanationData {
@@ -29,7 +32,7 @@ interface ProgressStep {
   progress: number;
 }
 
-export function VideoExplanation({ attemptId, questionId, score, userEmail }: VideoExplanationProps) {
+export function VideoExplanation({ attemptId, questionId, score, userEmail, question, userAnswer, testResults }: VideoExplanationProps) {
   const [videoData, setVideoData] = useState<VideoExplanationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,24 +74,25 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
   }, [videoData?.status]);
 
   const checkExistingVideo = async () => {
-    try {
-      const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
-      const url = devBase ? `${devBase}/api/student/video-explanation/${attemptId}` : `/api/student/video-explanation/${attemptId}`;
+    // DISABLED - No database mode
+    // try {
+    //   const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+    //   const url = devBase ? `${devBase}/api/student/video-explanation/${attemptId}` : `/api/student/video-explanation/${attemptId}`;
 
-      const response = await fetch(url, {
-        headers: {
-          'x-user-email': userEmail
-        }
-      });
+    //   const response = await fetch(url, {
+    //     headers: {
+    //       'x-user-email': userEmail
+    //     }
+    //   });
 
-      if (response.ok) {
-        const data = await response.json();
-        setVideoData(data);
-      }
-    } catch (err) {
-      // Video doesn't exist yet, that's okay
-      console.log('No existing video explanation');
-    }
+    //   if (response.ok) {
+    //     const data = await response.json();
+    //     setVideoData(data);
+    //   }
+    // } catch (err) {
+    //   // Video doesn't exist yet, that's okay
+    //   console.log('No existing video explanation');
+    // }
   };
 
   const requestVideoExplanation = async () => {
@@ -107,18 +111,34 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail }: Vi
         },
         body: JSON.stringify({
           attemptId,
-          questionId
+          questionId,
+          question,  // Send full question object
+          userAnswer,  // Send user's answer
+          testResults  // Send test results
         })
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setVideoData(data.videoExplanation);
+        // Create videoData object from direct response (no database needed)
+        const videoDataObj = {
+          id: attemptId,
+          attempt_id: attemptId,
+          explanation_text: '', // Will be populated if needed
+          video_url: data.videoUrl,
+          status: 'completed' as const,
+          created_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          video_provider: data.provider || 'static-video-tts',
+          video_provider_id: JSON.stringify({
+            videoId: data.videoId,
+            audioUrl: data.audioUrl
+          })
+        };
+
+        setVideoData(videoDataObj);
         setShowModal(true);
-        setStartTime(Date.now());
-        // Start progress simulation
-        simulateProgress();
       } else {
         setError(data.error || 'Failed to request video explanation');
       }

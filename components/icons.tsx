@@ -5,6 +5,7 @@
 import React from 'react';
 import {
   Activity,
+  AlertTriangle,
   Award,
   BookOpen,
   Brain,
@@ -63,3 +64,4 @@ export const MenuIcon: React.FC<IconProps> = (props) => <Menu {...defaultProps} 
 export const XIcon: React.FC<IconProps> = (props) => <X {...defaultProps} {...props} />;
 export const ActivityIcon: React.FC<IconProps> = (props) => <Activity {...defaultProps} {...props} />;
 export const LogoutIcon: React.FC<IconProps> = (props) => <LogOut {...defaultProps} {...props} />;
+export const AlertTriangleIcon: React.FC<IconProps> = (props) => <AlertTriangle {...defaultProps} {...props} />;

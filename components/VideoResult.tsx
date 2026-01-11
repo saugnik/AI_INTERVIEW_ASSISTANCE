@@ -10,9 +10,10 @@ interface EvaluationDisplayProps {
   onNew: () => void;
   userEmail?: string;
   attemptId?: string;
+  userAnswer?: string;  // Add userAnswer prop
 }
 
-const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({ evaluation, question, onRetry, onNew, userEmail, attemptId }) => {
+const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({ evaluation, question, onRetry, onNew, userEmail, attemptId, userAnswer }) => {
   const isPassing = evaluation.score >= 70;
 
   return (
@@ -113,13 +114,16 @@ const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({ evaluation, quest
         </div>
       </div>
 
-      {/* Video Explanation Section - Only for Learning Path (assigned) questions */}
-      {attemptId && userEmail && question.id && !question.id.includes('ai-gen-') && (
+      {/* Video Explanation Section - Available for all questions */}
+      {attemptId && userEmail && question.id && (
         <VideoExplanation
           attemptId={attemptId}
           questionId={question.id}
           score={evaluation.score}
           userEmail={userEmail}
+          question={question}
+          userAnswer={userAnswer}  // Pass userAnswer
+          testResults={evaluation.testResults}
         />
       )}
 

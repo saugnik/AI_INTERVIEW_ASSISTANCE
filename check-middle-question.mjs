@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function checkQuestion() {
     try {
-        const question = await prisma.questions.findFirst({
+        const question = await prisma.kjnquestions.findFirst({
             where: {
                 title: { contains: 'Middle Element' }
             }

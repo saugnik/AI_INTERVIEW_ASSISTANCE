@@ -394,18 +394,29 @@ export async function recordVideoRequest(studentEmail, attemptId) {
  */
 export async function requestVideoExplanation(attemptId, questionId, studentEmail, question, userAnswer, testResults) {
     try {
-        // Check if video already exists
-        const existing = await getVideoExplanation(attemptId);
-        if (existing) {
-            return {
-                success: true,
-                videoExplanation: existing,
-                message: 'Video explanation already exists'
-            };
-        }
+        // BYPASS DATABASE - Comment out all DB operations
+        console.log('🚀 Running in NO-DATABASE mode - skipping all database operations');
 
-        // Record the request
-        await recordVideoRequest(studentEmail, attemptId);
+        // // Check if video already exists (DISABLED)
+        // try {
+        //     const existing = await getVideoExplanation(attemptId);
+        //     if (existing) {
+        //         return {
+        //             success: true,
+        //             videoExplanation: existing,
+        //             message: 'Video explanation already exists'
+        //         };
+        //     }
+        // } catch (dbError) {
+        //     console.warn('⚠️ Database check failed, proceeding without DB:', dbError.message);
+        // }
+
+        // // Record the request (DISABLED)
+        // try {
+        //     await recordVideoRequest(studentEmail, attemptId);
+        // } catch (dbError) {
+        //     console.warn('⚠️ Could not record request in DB:', dbError.message);
+        // }
 
         // Generate explanation script (now 800-1200 words for 3-5 minutes)
         console.log(`📝 Generating detailed explanation script for attempt ${attemptId}...`);
@@ -415,27 +426,33 @@ export async function requestVideoExplanation(attemptId, questionId, studentEmai
         console.log(`🎬 Creating video explanation with static video + TTS...`);
         const mediaData = await createVideoWithDID(script, attemptId);
 
-        // Save to database
-        const videoExplanation = await saveVideoExplanation(
-            attemptId,
-            questionId,
-            studentEmail,
-            script,
-            {
-                status: 'completed',
-                videoId: mediaData.videoId,
-                videoUrl: mediaData.videoUrl,
-                audioUrl: mediaData.audioUrl,
-                duration: mediaData.duration,
-                provider: 'static-video-tts'
-            }
-        );
+        // // Save to database (DISABLED)
+        // let videoExplanation = null;
+        // try {
+        //     videoExplanation = await saveVideoExplanation(
+        //         attemptId,
+        //         questionId,
+        //         studentEmail,
+        //         script,
+        //         {
+        //             status: 'completed',
+        //             videoId: mediaData.videoId,
+        //             videoUrl: mediaData.videoUrl,
+        //             audioUrl: mediaData.audioUrl,
+        //             duration: mediaData.duration,
+        //             provider: 'static-video-tts'
+        //         }
+        //     );
+        //     console.log('✅ Video explanation saved to database');
+        // } catch (dbError) {
+        //     console.warn('⚠️ Could not save to database (continuing anyway):', dbError.message);
+        // }
 
         console.log(`✅ Video explanation created! Video: ${mediaData.videoUrl}, Audio: ${mediaData.audioUrl}`);
 
         return {
             success: true,
-            videoExplanation,
+            videoExplanation: null, // No DB, so no videoExplanation object
             videoId: mediaData.videoId,
             videoUrl: mediaData.videoUrl,
             audioUrl: mediaData.audioUrl,
@@ -451,4 +468,5 @@ export async function requestVideoExplanation(attemptId, questionId, studentEmai
         };
     }
 }
+
 
