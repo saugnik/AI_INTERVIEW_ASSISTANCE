@@ -1,6 +1,5 @@
-﻿import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
-
 async function clearRateLimits() {
   try {
     const deleted = await prisma.video_explanation_requests.deleteMany({});
@@ -11,5 +10,4 @@ async function clearRateLimits() {
     await prisma.$disconnect();
   }
 }
-
 clearRateLimits();

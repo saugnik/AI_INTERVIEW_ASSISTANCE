@@ -1,11 +1,6 @@
-/**
- * Student Assigned Questions Component
- * Displays questions assigned by administrators
- */
 import React, { useState, useEffect } from 'react';
 import { BookIcon, CheckCircleIcon, ClockIcon, PlayIcon, AwardIcon, ZapIcon, BrainIcon } from './icons';
 import AIQuestionGenerator from './AIQuestionGenerator';
-
 interface AssignedQuestion {
     id: string;
     title: string;
@@ -18,12 +13,10 @@ interface AssignedQuestion {
     completed: boolean;
     completedAt: string | null;
 }
-
 interface StudentAssignedQuestionsProps {
     userEmail: string;
     onStartQuestion: (question: any) => void;
 }
-
 const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ userEmail, onStartQuestion }) => {
     const [aiPractice, setAiPractice] = useState<AssignedQuestion[]>([]);
     const [adminPractice, setAdminPractice] = useState<AssignedQuestion[]>([]);
@@ -33,9 +26,7 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
     const [activeTab, setActiveTab] = useState<'ai' | 'practice' | 'test'>('practice');
     const [showGenerator, setShowGenerator] = useState(false);
     const [generatingAI, setGeneratingAI] = useState(false);
-
     const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-
     const fetchAssignedQuestions = async () => {
         try {
             const response = await fetch(`${API_URL}/api/student/assigned-questions`, {
@@ -54,7 +45,6 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
             setLoading(false);
         }
     };
-
     const fetchProgress = async () => {
         try {
             const response = await fetch(`${API_URL}/api/student/my-progress`, {
@@ -69,20 +59,14 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
             console.error('Error fetching progress:', error);
         }
     };
-
-    // Auto-generate AI questions when tab opens
     const autoGenerateAIQuestions = async () => {
         if (generatingAI) return;
-
         setGeneratingAI(true);
         try {
-            // Generate 3 AI questions
             const questionsToGenerate = 3;
             const difficulties = ['Easy', 'Medium', 'Hard'];
             const generatedQuestions: AssignedQuestion[] = [];
-
             for (let i = 0; i < questionsToGenerate; i++) {
-                // Generate question using existing endpoint
                 const generateResponse = await fetch(`${API_URL}/api/generate`, {
                     method: 'POST',
                     headers: {
@@ -94,16 +78,11 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
                         type: 'Coding'
                     })
                 });
-
                 if (generateResponse.ok) {
                     const question = await generateResponse.json();
                     console.log('Generated question:', question);
-
-                    // Ensure question has an ID (fallback to crypto.randomUUID if missing)
                     const questionId = question.id || crypto.randomUUID();
                     console.log('Question ID:', questionId);
-
-                    // Convert to AssignedQuestion format with all necessary fields
                     generatedQuestions.push({
                         id: questionId,
                         title: question.title,
@@ -124,39 +103,30 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
                     } as any);
                 }
             }
-
-            // Set the generated questions directly
             setAiPractice(generatedQuestions);
-
         } catch (error) {
             console.error('Error auto-generating questions:', error);
         } finally {
             setGeneratingAI(false);
         }
     };
-
     useEffect(() => {
         fetchAssignedQuestions();
         fetchProgress();
     }, [userEmail]);
-
-    // Auto-generate when AI tab is opened and empty
     useEffect(() => {
         if (activeTab === 'ai' && aiPractice.length === 0 && !generatingAI) {
             autoGenerateAIQuestions();
         }
     }, [activeTab, aiPractice.length]);
-
     const isOverdue = (dueDate: string | null): boolean => {
         if (!dueDate) return false;
         return new Date(dueDate) < new Date();
     };
-
     const formatDate = (dateString: string): string => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
-
     const getCurrentQuestions = () => {
         switch (activeTab) {
             case 'ai': return aiPractice;
@@ -165,9 +135,7 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
             default: return [];
         }
     };
-
     const currentQuestions = getCurrentQuestions();
-
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -175,7 +143,6 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
             </div>
         );
     }
-
     const renderQuestionCard = (question: AssignedQuestion) => (
         <div
             key={question.id}
@@ -206,7 +173,6 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
                             <h3 className="text-xl font-black text-slate-900 mb-3 font-heading group-hover:text-indigo-600 transition-colors">
                                 {question.title}
                             </h3>
-
                             <div className="flex flex-wrap items-center gap-4 text-sm font-bold">
                                 {question.dueDate && (
                                     <span className={`flex items-center gap-2 ${isOverdue(question.dueDate) && !question.completed
@@ -228,7 +194,6 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
                         </div>
                     </div>
                 </div>
-
                 {!question.completed && (
                     <button
                         onClick={() => onStartQuestion(question)}
@@ -249,10 +214,9 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
             </div>
         </div>
     );
-
     return (
         <div className="space-y-10">
-            {/* Stats Header */}
+            {}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {[
                     { label: 'Total Tasks', value: progress.total, icon: <BookIcon />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -271,8 +235,7 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
                     </div>
                 ))}
             </div>
-
-            {/* Main Course Content */}
+            {}
             <div className="edu-card-3d overflow-hidden">
                 <div className="border-b-2 border-slate-50 flex bg-slate-50/30">
                     {[
@@ -297,7 +260,6 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
                         </button>
                     ))}
                 </div>
-
                 <div className="p-8">
                     {activeTab === 'ai' && (
                         <div className="mb-8">
@@ -340,7 +302,6 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
                             )}
                         </div>
                     )}
-
                     <div className="grid grid-cols-1 gap-6">
                         {currentQuestions.length === 0 ? (
                             <div className="text-center py-20 bg-slate-50/50 rounded-[32px] border-2 border-dashed border-slate-200">
@@ -359,5 +320,4 @@ const StudentAssignedQuestions: React.FC<StudentAssignedQuestionsProps> = ({ use
         </div>
     );
 };
-
 export default StudentAssignedQuestions;

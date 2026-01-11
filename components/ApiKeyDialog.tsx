@@ -1,21 +1,13 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
 import React, { useState } from 'react';
-
 interface ApiKeyDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (apiKey: string) => void;
 }
-
 export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-
   if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (apiKey.trim()) {
@@ -23,10 +15,9 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
       setApiKey('');
     }
   };
-
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div 
+      <div
         className="relative w-full max-w-md overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
@@ -36,10 +27,9 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
         }}
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500"></div>
-        
         <div className="p-8">
           <div className="text-center mb-6">
-            <div 
+            <div
               className="w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center"
               style={{
                 background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
@@ -50,9 +40,9 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
             </div>
-            <h2 
+            <h2
               className="text-2xl font-bold mb-2"
-              style={{ 
+              style={{
                 fontFamily: "'Space Grotesk', sans-serif",
                 background: 'linear-gradient(135deg, #fff 0%, #c4b5fd 100%)',
                 WebkitBackgroundClip: 'text',
@@ -65,10 +55,9 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
               Enter your Gemini API key to enable AI-powered features
             </p>
           </div>
-
           <form onSubmit={handleSubmit}>
             <div className="mb-6">
-              <label 
+              <label
                 className="block text-sm font-medium text-violet-300 mb-2"
                 style={{ fontFamily: "'Outfit', sans-serif" }}
               >
@@ -105,8 +94,7 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
                 </button>
               </div>
             </div>
-
-            <div 
+            <div
               className="p-4 rounded-xl mb-6"
               style={{
                 background: 'rgba(6, 182, 212, 0.1)',
@@ -119,9 +107,9 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
                 </svg>
                 <p className="text-cyan-200 text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>
                   Get your API key from{' '}
-                  <a 
-                    href="https://aistudio.google.com/app/apikey" 
-                    target="_blank" 
+                  <a
+                    href="https:
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-cyan-400 underline hover:text-cyan-300"
                   >
@@ -130,7 +118,6 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
                 </p>
               </div>
             </div>
-
             <div className="flex gap-3">
               <button
                 type="button"
@@ -151,7 +138,7 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
                 className="flex-1 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 style={{
                   fontFamily: "'Space Grotesk', sans-serif",
-                  background: apiKey.trim() 
+                  background: apiKey.trim()
                     ? 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'
                     : 'rgba(139, 92, 246, 0.3)',
                   boxShadow: apiKey.trim() ? '0 10px 30px rgba(139, 92, 246, 0.3)' : 'none'

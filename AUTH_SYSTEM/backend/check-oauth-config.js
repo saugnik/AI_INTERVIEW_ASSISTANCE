@@ -1,7 +1,6 @@
-// Test script to check OAuth redirect URI
+﻿// Test script to check OAuth redirect URI
 const PORT = process.env.PORT || 3001;
 const redirectUri = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${PORT}/auth/google/callback`;
-
 console.log('='.repeat(60));
 console.log('OAuth Configuration Check');
 console.log('='.repeat(60));

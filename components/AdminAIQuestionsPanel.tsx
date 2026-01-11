@@ -1,7 +1,5 @@
-// Admin AI Questions Panel Component
 import { useEffect, useState } from 'react';
 import { Sparkles, Users, TrendingUp, CheckCircle, Clock } from 'lucide-react';
-
 interface AIQuestion {
     id: string;
     title: string;
@@ -15,7 +13,6 @@ interface AIQuestion {
     attemptCount: number;
     solvedBy: number;
 }
-
 interface Student {
     email: string;
     name: string;
@@ -23,7 +20,6 @@ interface Student {
     completedQuestions: number;
     progress: number;
 }
-
 export default function AdminAIQuestionsPanel() {
     const [questions, setQuestions] = useState<AIQuestion[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
@@ -32,18 +28,16 @@ export default function AdminAIQuestionsPanel() {
     const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignmentType, setAssignmentType] = useState<'practice' | 'test'>('practice');
-
     const API_URL = 'http://localhost:3001';
     const userEmail = localStorage.getItem('userEmail') || '';
-
     useEffect(() => {
         fetchAIQuestions();
         fetchStudents();
     }, []);
-
     const fetchAIQuestions = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/admin/suggested-questions', {
+            const response = await fetch(`${API_URL}/api/admin/suggested-questions`, {
+                method: 'GET',
                 headers: {
                     'x-user-email': localStorage.getItem('userEmail') || '',
                     'x-user-role': 'admin'
@@ -57,7 +51,6 @@ export default function AdminAIQuestionsPanel() {
             setLoading(false);
         }
     };
-
     const fetchStudents = async () => {
         try {
             const response = await fetch(`${API_URL}/api/admin/students`, {
@@ -72,13 +65,11 @@ export default function AdminAIQuestionsPanel() {
             console.error('Error fetching students:', error);
         }
     };
-
     const handleAssignQuestion = async () => {
         if (!selectedQuestion || !selectedStudent) {
             alert('Please select both a question and a student');
             return;
         }
-
         try {
             const response = await fetch(`${API_URL}/api/admin/assign-question`, {
                 method: 'POST',
@@ -94,15 +85,14 @@ export default function AdminAIQuestionsPanel() {
                     source: 'ai'
                 })
             });
-
             const data = await response.json();
             if (data.success) {
                 alert('Question assigned successfully!');
                 setShowAssignModal(false);
                 setSelectedQuestion(null);
                 setSelectedStudent(null);
-                fetchAIQuestions(); // Refresh to update assignment counts
-                fetchStudents(); // Refresh student data
+                fetchAIQuestions();
+                fetchStudents();
             } else {
                 alert('Failed to assign question: ' + data.error);
             }
@@ -111,7 +101,6 @@ export default function AdminAIQuestionsPanel() {
             alert('Failed to assign question');
         }
     };
-
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty.toUpperCase()) {
             case 'EASY': return 'bg-green-100 text-green-800 border-green-300';
@@ -120,7 +109,6 @@ export default function AdminAIQuestionsPanel() {
             default: return 'bg-gray-100 text-gray-800 border-gray-300';
         }
     };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -128,10 +116,9 @@ export default function AdminAIQuestionsPanel() {
             </div>
         );
     }
-
     return (
         <div className="max-w-7xl mx-auto p-6">
-            {/* Header */}
+            { }
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
                     <Sparkles className="w-8 h-8 text-purple-600" />
@@ -139,15 +126,14 @@ export default function AdminAIQuestionsPanel() {
                 </div>
                 <p className="text-gray-600">Review and assign AI-generated questions to students</p>
             </div>
-
-            {/* Stats Overview */}
+            { }
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="w-5 h-5 text-purple-600" />
                         <span className="text-sm text-gray-600">Total Generated</span>
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">{questions.length}</p>
+                    <p className="text-2xl font-bold text-gray-900">{questions?.length || 0}</p>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
@@ -155,7 +141,7 @@ export default function AdminAIQuestionsPanel() {
                         <span className="text-sm text-gray-600">Total Assigned</span>
                     </div>
                     <p className="text-2xl font-bold text-gray-900">
-                        {questions.reduce((sum, q) => sum + q.assignedTo, 0)}
+                        {questions?.reduce((sum, q) => sum + q.assignedTo, 0) || 0}
                     </p>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200">
@@ -164,7 +150,7 @@ export default function AdminAIQuestionsPanel() {
                         <span className="text-sm text-gray-600">Total Attempts</span>
                     </div>
                     <p className="text-2xl font-bold text-gray-900">
-                        {questions.reduce((sum, q) => sum + q.attemptCount, 0)}
+                        {questions?.reduce((sum, q) => sum + q.attemptCount, 0) || 0}
                     </p>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-md border border-gray-200">
@@ -173,21 +159,20 @@ export default function AdminAIQuestionsPanel() {
                         <span className="text-sm text-gray-600">Total Solved</span>
                     </div>
                     <p className="text-2xl font-bold text-gray-900">
-                        {questions.reduce((sum, q) => sum + q.solvedBy, 0)}
+                        {questions?.reduce((sum, q) => sum + q.solvedBy, 0) || 0}
                     </p>
                 </div>
             </div>
-
-            {/* Questions List */}
+            { }
             <div className="space-y-4">
-                {questions.length === 0 ? (
+                {questions?.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
                         <Sparkles className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                         <p className="text-gray-500">No AI-generated questions yet</p>
                         <p className="text-sm text-gray-400 mt-2">Questions will appear here when students generate them</p>
                     </div>
                 ) : (
-                    questions.map((question) => (
+                    questions?.map((question) => (
                         <div
                             key={question.id}
                             className="bg-white rounded-xl p-6 shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
@@ -224,8 +209,7 @@ export default function AdminAIQuestionsPanel() {
                                     Assign to Students
                                 </button>
                             </div>
-
-                            {/* Question Stats */}
+                            { }
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t border-gray-200">
                                 <div className="text-center">
                                     <p className="text-2xl font-bold text-purple-600">{question.testCasesCount}</p>
@@ -248,8 +232,7 @@ export default function AdminAIQuestionsPanel() {
                                     <p className="text-xs text-gray-600">Solved</p>
                                 </div>
                             </div>
-
-                            {/* Success Rate */}
+                            { }
                             {question.attemptCount > 0 && (
                                 <div className="mt-4 pt-4 border-t border-gray-200">
                                     <div className="flex items-center justify-between text-sm mb-2">
@@ -270,8 +253,7 @@ export default function AdminAIQuestionsPanel() {
                     ))
                 )}
             </div>
-
-            {/* Assignment Modal */}
+            { }
             {showAssignModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200">
@@ -283,7 +265,6 @@ export default function AdminAIQuestionsPanel() {
                                 ? 'This AI-generated question will be assigned as practice for the student.'
                                 : 'This AI-generated question will be assigned as a test for evaluation.'}
                         </p>
-
                         <div className="space-y-4 mb-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -303,7 +284,6 @@ export default function AdminAIQuestionsPanel() {
                                 </select>
                             </div>
                         </div>
-
                         <div className="flex gap-3">
                             <button
                                 onClick={() => {

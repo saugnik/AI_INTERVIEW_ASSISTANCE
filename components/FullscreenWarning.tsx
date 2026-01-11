@@ -1,13 +1,11 @@
 import React from 'react';
 import { XIcon, AwardIcon, AlertTriangleIcon } from './icons';
-
 interface FullscreenWarningProps {
     isOpen: boolean;
     violationCount: number;
     onReturnToFullscreen: () => void;
     onEndAttempt?: () => void;
 }
-
 const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
     isOpen,
     violationCount,
@@ -15,13 +13,11 @@ const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
     onEndAttempt
 }) => {
     if (!isOpen) return null;
-
     const isSerious = violationCount >= 3;
-
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in">
             <div className="relative max-w-2xl w-full mx-4 bg-white rounded-[32px] shadow-2xl overflow-hidden animate-scale-in">
-                {/* Warning Header */}
+                {}
                 <div className={`p-8 ${isSerious ? 'bg-gradient-to-br from-rose-600 to-red-700' : 'bg-gradient-to-br from-amber-500 to-orange-600'} text-white relative overflow-hidden`}>
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full translate-x-1/3 -translate-y-1/3 blur-3xl"></div>
                     <div className="relative z-10 flex items-start gap-6">
@@ -40,10 +36,9 @@ const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
                         </div>
                     </div>
                 </div>
-
-                {/* Warning Content */}
+                {}
                 <div className="p-8 space-y-6">
-                    {/* Violation Counter */}
+                    {}
                     <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-100">
                         <div className="flex items-center justify-between">
                             <div>
@@ -55,8 +50,7 @@ const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
                             </div>
                         </div>
                     </div>
-
-                    {/* Academic Integrity Notice */}
+                    {}
                     <div className="bg-indigo-50 rounded-2xl p-6 border-2 border-indigo-100">
                         <div className="flex items-start gap-4">
                             <AwardIcon className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-1" />
@@ -69,8 +63,7 @@ const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
                             </div>
                         </div>
                     </div>
-
-                    {/* Warning Message */}
+                    {}
                     <div className="space-y-3">
                         <h4 className="font-bold text-slate-900 text-lg">Please note:</h4>
                         <ul className="space-y-2">
@@ -88,7 +81,6 @@ const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
                             </li>
                         </ul>
                     </div>
-
                     {isSerious && (
                         <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6">
                             <p className="text-rose-800 font-bold text-center">
@@ -97,8 +89,7 @@ const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
                         </div>
                     )}
                 </div>
-
-                {/* Action Buttons */}
+                {}
                 <div className="p-8 border-t-2 border-slate-50 bg-slate-50/50 flex gap-4">
                     {onEndAttempt && isSerious && (
                         <button
@@ -120,5 +111,4 @@ const FullscreenWarning: React.FC<FullscreenWarningProps> = ({
         </div>
     );
 };
-
 export default FullscreenWarning;

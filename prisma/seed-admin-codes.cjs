@@ -1,9 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+﻿const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-
 async function seedAdminCodes() {
     console.log('🔐 Seeding admin codes...');
-
     const adminCode = await prisma.admin_codes.upsert({
         where: { code: 'ADMIN2024' },
         update: {},
@@ -15,11 +13,9 @@ async function seedAdminCodes() {
             used_by: []
         }
     });
-
     console.log('✅ Admin code created:', adminCode.code);
     console.log('📝 Description:', adminCode.description);
 }
-
 seedAdminCodes()
     .catch((e) => {
         console.error('❌ Error seeding admin codes:', e);

@@ -1,12 +1,8 @@
-// Test Gemini API directly
 const API_KEY = 'AIzaSyAHEOpPond2NXRSAbWZG_lBC2UHjo1hjtc';
-
 async function testGeminiAPI() {
     try {
         console.log('🧪 Testing Gemini API with new key...');
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${API_KEY}`;
-
+        const apiUrl = `https:
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -14,12 +10,9 @@ async function testGeminiAPI() {
                 contents: [{ parts: [{ text: 'Say hello in one word' }] }]
             })
         });
-
         const data = await response.json();
-
         console.log('\n📊 Response Status:', response.status);
         console.log('📊 Response Data:', JSON.stringify(data, null, 2));
-
         if (data.candidates && data.candidates[0]) {
             console.log('\n✅ API Key is working!');
             console.log('Response:', data.candidates[0].content.parts[0].text);
@@ -33,5 +26,4 @@ async function testGeminiAPI() {
         console.error('\n❌ Test failed:', error.message);
     }
 }
-
 testGeminiAPI();

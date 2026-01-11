@@ -1,7 +1,5 @@
-// Leaderboard Component
 import { useEffect, useState } from 'react';
 import { Trophy, Medal, Award, TrendingUp } from 'lucide-react';
-
 interface LeaderboardEntry {
     rank: number;
     email: string;
@@ -11,16 +9,13 @@ interface LeaderboardEntry {
     questionsSolved: number;
     avgScore: number;
 }
-
 export default function Leaderboard() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [limit, setLimit] = useState(10);
-
     useEffect(() => {
         fetchLeaderboard();
     }, [limit]);
-
     const fetchLeaderboard = async () => {
         try {
             const response = await fetch(`http://localhost:3001/api/rankings?limit=${limit}`);
@@ -32,7 +27,6 @@ export default function Leaderboard() {
             setLoading(false);
         }
     };
-
     const getRankIcon = (rank: number) => {
         switch (rank) {
             case 1:
@@ -45,7 +39,6 @@ export default function Leaderboard() {
                 return <span className="text-2xl font-bold text-gray-400">#{rank}</span>;
         }
     };
-
     const getRankBg = (rank: number) => {
         switch (rank) {
             case 1:
@@ -58,7 +51,6 @@ export default function Leaderboard() {
                 return 'bg-white border-gray-200';
         }
     };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -66,10 +58,9 @@ export default function Leaderboard() {
             </div>
         );
     }
-
     return (
         <div className="max-w-4xl mx-auto p-6">
-            {/* Header */}
+            { }
             <div className="text-center mb-8">
                 <div className="flex items-center justify-center gap-3 mb-4">
                     <Trophy className="w-12 h-12 text-yellow-500" />
@@ -77,26 +68,24 @@ export default function Leaderboard() {
                 </div>
                 <p className="text-gray-600">Top performers in the AI Interview Challenge</p>
             </div>
-
-            {/* Leaderboard */}
+            { }
             <div className="space-y-3">
-                {leaderboard.length === 0 ? (
+                {leaderboard?.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
                         <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                         <p className="text-gray-500">No rankings yet. Be the first to solve questions!</p>
                     </div>
                 ) : (
-                    leaderboard.map((entry) => (
+                    leaderboard?.map((entry) => (
                         <div
                             key={entry.rank}
                             className={`flex items-center gap-4 p-4 rounded-2xl border-2 shadow-md transition-all hover:shadow-lg ${getRankBg(entry.rank)}`}
                         >
-                            {/* Rank */}
+                            { }
                             <div className="flex items-center justify-center w-16 h-16">
                                 {getRankIcon(entry.rank)}
                             </div>
-
-                            {/* User Info */}
+                            { }
                             <div className="flex-1">
                                 <div className="flex items-center gap-3">
                                     {entry.picture ? (
@@ -116,8 +105,7 @@ export default function Leaderboard() {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Stats */}
+                            { }
                             <div className="text-right space-y-1">
                                 <div className="flex items-center gap-2 justify-end">
                                     <TrendingUp className="w-5 h-5 text-blue-600" />
@@ -130,8 +118,7 @@ export default function Leaderboard() {
                     ))
                 )}
             </div>
-
-            {/* Load More */}
+            { }
             {leaderboard.length >= limit && (
                 <div className="text-center mt-6">
                     <button

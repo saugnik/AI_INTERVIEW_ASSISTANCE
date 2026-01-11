@@ -1,16 +1,12 @@
-// Database configuration and user management
+﻿// Database configuration and user management
 import pg from 'pg';
 import dotenv from 'dotenv';
-
 dotenv.config();
-
 const { Pool } = pg;
-
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
-
 // Test connection
 pool.query('SELECT NOW()', (err, res) => {
     if (err) {
@@ -19,7 +15,6 @@ pool.query('SELECT NOW()', (err, res) => {
         console.log('✅ Database connected');
     }
 });
-
 // Create users table if not exists
 export async function initDatabase() {
     const createTableQuery = `
@@ -34,7 +29,6 @@ export async function initDatabase() {
       last_login TIMESTAMP DEFAULT NOW()
     );
   `;
-
     try {
         await pool.query(createTableQuery);
         console.log('✅ Users table ready');
@@ -42,25 +36,21 @@ export async function initDatabase() {
         console.error('❌ Error creating users table:', error);
     }
 }
-
 // Get user by Google ID
 export async function getUserByGoogleId(googleId) {
     const query = 'SELECT * FROM users WHERE google_id = $1';
     const result = await pool.query(query, [googleId]);
     return result.rows[0] || null;
 }
-
 // Get user by ID
 export async function getUserById(id) {
     const query = 'SELECT * FROM users WHERE id = $1';
     const result = await pool.query(query, [id]);
     return result.rows[0] || null;
 }
-
 // Create or update user
 export async function createOrUpdateUser(googleId, email, name, picture) {
     const existingUser = await getUserByGoogleId(googleId);
-
     if (existingUser) {
         // Update existing user
         const query = `
@@ -82,5 +72,4 @@ export async function createOrUpdateUser(googleId, email, name, picture) {
         return result.rows[0];
     }
 }
-
 export default pool;

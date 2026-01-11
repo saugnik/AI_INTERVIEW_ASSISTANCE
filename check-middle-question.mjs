@@ -1,7 +1,5 @@
-// Check specific question for examples
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
-
 async function checkQuestion() {
     try {
         const question = await prisma.kjnquestions.findFirst({
@@ -9,7 +7,6 @@ async function checkQuestion() {
                 title: { contains: 'Middle Element' }
             }
         });
-
         if (question) {
             console.log('Question:', question.title);
             console.log('Type:', question.type);
@@ -20,12 +17,10 @@ async function checkQuestion() {
         } else {
             console.log('Question not found');
         }
-
     } catch (error) {
         console.error('Error:', error.message);
     } finally {
         await prisma.$disconnect();
     }
 }
-
 checkQuestion();

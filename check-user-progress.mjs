@@ -1,10 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-
 const prisma = new PrismaClient();
-
 async function checkUserProgress() {
     try {
-        // Get your email from auth_users
         const users = await prisma.auth_users.findMany({
             where: {
                 role: 'student'
@@ -14,19 +11,14 @@ async function checkUserProgress() {
                 name: true
             }
         });
-
         console.log('\n📧 Student users:');
         users.forEach(u => console.log(`  - ${u.email} (${u.name})`));
-
         if (users.length === 0) {
             console.log('\n❌ No student users found!');
             return;
         }
-
         const studentEmail = users[0].email;
         console.log(`\n🔍 Checking progress for: ${studentEmail}\n`);
-
-        // Check solved questions
         const solvedQuestions = await prisma.solved_questions.findMany({
             where: { student_email: studentEmail },
             include: {
@@ -35,26 +27,19 @@ async function checkUserProgress() {
                 }
             }
         });
-
         console.log(`✅ Solved Questions: ${solvedQuestions.length}`);
         solvedQuestions.forEach(sq => {
             console.log(`   - ${sq.question.title} (Score: ${sq.score})`);
         });
-
-        // Check assignments
         const assignments = await prisma.question_assignments.findMany({
             where: { student_email: studentEmail }
         });
-
         console.log(`\n📋 Assignments: ${assignments.length}`);
         console.log(`   Completed: ${assignments.filter(a => a.completed).length}`);
         console.log(`   Pending: ${assignments.filter(a => !a.completed).length}`);
-
-        // Check XP/Level
         const levelData = await prisma.student_levels.findUnique({
             where: { student_email: studentEmail }
         });
-
         console.log(`\n⚡ XP & Level:`);
         if (levelData) {
             console.log(`   XP: ${levelData.xp_points}`);
@@ -62,12 +47,9 @@ async function checkUserProgress() {
         } else {
             console.log(`   ❌ No level data found!`);
         }
-
-        // Check rankings
         const rankingData = await prisma.student_rankings.findUnique({
             where: { student_email: studentEmail }
         });
-
         console.log(`\n🏆 Rankings:`);
         if (rankingData) {
             console.log(`   Total Score: ${rankingData.total_score}`);
@@ -76,24 +58,19 @@ async function checkUserProgress() {
         } else {
             console.log(`   ❌ No ranking data found!`);
         }
-
-        // Check attempts
         const attempts = await prisma.attempts.findMany({
             where: { student_email: studentEmail },
             orderBy: { created_at: 'desc' },
             take: 5
         });
-
         console.log(`\n📝 Recent Attempts: ${attempts.length}`);
         attempts.forEach(att => {
             console.log(`   - Score: ${att.score}, Passed: ${att.passed}, Time: ${att.created_at}`);
         });
-
     } catch (error) {
         console.error('❌ Error:', error);
     } finally {
         await prisma.$disconnect();
     }
 }
-
 checkUserProgress();

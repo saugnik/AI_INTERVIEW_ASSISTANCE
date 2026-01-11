@@ -1,11 +1,9 @@
 const pg = require('pg');
 const { Pool } = pg;
 require('dotenv').config();
-
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL
 });
-
 async function insertAdminCode() {
     try {
         const result = await pool.query(`
@@ -22,7 +20,6 @@ async function insertAdminCode() {
             ON CONFLICT (code) DO NOTHING
             RETURNING *;
         `);
-
         if (result.rowCount > 0) {
             console.log('✅ Admin code inserted successfully!');
             console.log('📝 Code:', result.rows[0].code);
@@ -36,5 +33,4 @@ async function insertAdminCode() {
         await pool.end();
     }
 }
-
 insertAdminCode();

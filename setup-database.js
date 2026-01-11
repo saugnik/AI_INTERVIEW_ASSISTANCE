@@ -1,13 +1,8 @@
-// Seed database with initial data for new schema
 import { PrismaClient } from '@prisma/client';
-
 const prisma = new PrismaClient();
-
 async function seedDatabase() {
     console.log('🌱 Seeding database with initial data...\n');
-
     try {
-        // 1. Create admin user
         console.log('Creating admin user...');
         await prisma.auth_users.upsert({
             where: { email: 'admin@aiinterview.com' },
@@ -20,8 +15,6 @@ async function seedDatabase() {
             }
         });
         console.log('✅ Admin user created\n');
-
-        // 2. Create admin code
         console.log('Creating admin code...');
         await prisma.admin_codes.upsert({
             where: { code: 'ADMIN2024' },
@@ -33,8 +26,6 @@ async function seedDatabase() {
             }
         });
         console.log('✅ Admin code created: ADMIN2024\n');
-
-        // 3. Create sample student
         console.log('Creating sample student...');
         const studentEmail = 'student@test.com';
         await prisma.auth_users.upsert({
@@ -47,8 +38,6 @@ async function seedDatabase() {
                 auth_provider: 'google'
             }
         });
-
-        // Initialize student rankings
         await prisma.student_rankings.upsert({
             where: { student_email: studentEmail },
             update: {},
@@ -59,8 +48,6 @@ async function seedDatabase() {
                 avg_score: 0
             }
         });
-
-        // Initialize student levels
         await prisma.student_levels.upsert({
             where: { student_email: studentEmail },
             update: {},
@@ -73,8 +60,6 @@ async function seedDatabase() {
             }
         });
         console.log('✅ Sample student created with rankings and levels\n');
-
-        // 4. Create sample question
         console.log('Creating sample question...');
         const questionId = crypto.randomUUID();
         await prisma.questions.create({
@@ -95,12 +80,10 @@ async function seedDatabase() {
                     { input: '[3,2,4], target=6', output: '[1,2]', explanation: '2 + 4 = 6' }
                 ]),
                 reference_solution: 'function twoSum(nums, target) {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const complement = target - nums[i];\n    if (map.has(complement)) {\n      return [map.get(complement), i];\n    }\n    map.set(nums[i], i);\n  }\n  return [];\n}',
-                starter_code: 'function twoSum(nums, target) {\n  // Write your solution here\n  \n}',
+                starter_code: 'function twoSum(nums, target) {\n
                 source: 'admin'
             }
         });
-
-        // Create test cases for the question
         await prisma.test_cases.createMany({
             data: [
                 {
@@ -126,8 +109,6 @@ async function seedDatabase() {
                 }
             ]
         });
-
-        // Create hints for the question
         await prisma.question_hints.createMany({
             data: [
                 {
@@ -150,10 +131,7 @@ async function seedDatabase() {
                 }
             ]
         });
-
         console.log('✅ Sample question created with test cases and hints\n');
-
-        // 5. Display summary
         console.log('📊 Database Summary:');
         const userCount = await prisma.auth_users.count();
         const questionCount = await prisma.questions.count();
@@ -161,7 +139,6 @@ async function seedDatabase() {
         const hintCount = await prisma.question_hints.count();
         const rankingCount = await prisma.student_rankings.count();
         const levelCount = await prisma.student_levels.count();
-
         console.log(`   Users: ${userCount}`);
         console.log(`   Questions: ${questionCount}`);
         console.log(`   Test Cases: ${testCaseCount}`);
@@ -169,9 +146,7 @@ async function seedDatabase() {
         console.log(`   Student Rankings: ${rankingCount}`);
         console.log(`   Student Levels: ${levelCount}`);
         console.log('');
-
         console.log('✅ Database seeding complete!\n');
-
     } catch (error) {
         console.error('❌ Error seeding database:', error);
         throw error;
@@ -179,5 +154,4 @@ async function seedDatabase() {
         await prisma.$disconnect();
     }
 }
-
 seedDatabase();

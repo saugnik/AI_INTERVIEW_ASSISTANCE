@@ -1,14 +1,12 @@
-// Passport.js Google OAuth Configuration
+﻿// Passport.js Google OAuth Configuration
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { getUserByGoogleId, createOrUpdateUser } from './database.js';
-
 export function configurePassport() {
     // Serialize user for session
     passport.serializeUser((user, done) => {
         done(null, user.id);
     });
-
     // Deserialize user from session
     passport.deserializeUser(async (id, done) => {
         try {
@@ -18,7 +16,6 @@ export function configurePassport() {
             done(error, null);
         }
     });
-
     // Google OAuth Strategy
     passport.use(
         new GoogleStrategy(
@@ -34,10 +31,8 @@ export function configurePassport() {
                     const email = profile.emails?.[0]?.value || '';
                     const name = profile.displayName || '';
                     const picture = profile.photos?.[0]?.value || '';
-
                     // Create or update user in database
                     const user = await createOrUpdateUser(googleId, email, name, picture);
-
                     done(null, user);
                 } catch (error) {
                     done(error, null);
@@ -45,6 +40,5 @@ export function configurePassport() {
             }
         )
     );
-
     return passport;
 }

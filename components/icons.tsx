@@ -1,7 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
 import React from 'react';
 import {
   Activity,
@@ -31,14 +27,11 @@ import {
   XCircle,
   Zap
 } from 'lucide-react';
-
 const defaultProps = {
   strokeWidth: 2,
   className: "w-5 h-5"
 };
-
 type IconProps = React.SVGProps<SVGSVGElement>;
-
 export const HomeIcon: React.FC<IconProps> = (props) => <Home {...defaultProps} {...props} />;
 export const DashboardIcon: React.FC<IconProps> = (props) => <LayoutDashboard {...defaultProps} {...props} />;
 export const CodeIcon: React.FC<IconProps> = (props) => <Code2 {...defaultProps} {...props} />;

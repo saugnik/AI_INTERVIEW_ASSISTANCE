@@ -1,10 +1,8 @@
-// config/passport.js
+﻿// config/passport.js
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { PrismaClient } = require('@prisma/client');
-
 const prisma = new PrismaClient();
-
 // Configure Google OAuth Strategy
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
@@ -17,13 +15,11 @@ passport.use(new GoogleStrategy({
             let user = await prisma.auth_users.findUnique({
                 where: { google_id: profile.id }
             });
-
             if (!user) {
                 // Create new user
                 // Check if email already exists (for role assignment)
                 const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim());
                 const isAdmin = adminEmails.includes(profile.emails[0].value);
-
                 user = await prisma.auth_users.create({
                     data: {
                         google_id: profile.id,
@@ -42,19 +38,16 @@ passport.use(new GoogleStrategy({
                     data: { last_login_at: new Date() }
                 });
             }
-
             return done(null, user);
         } catch (error) {
             return done(error, null);
         }
     }
 ));
-
 // Serialize user for session
 passport.serializeUser((user, done) => {
     done(null, user.id);
 });
-
 // Deserialize user from session
 passport.deserializeUser(async (id, done) => {
     try {
@@ -66,5 +59,4 @@ passport.deserializeUser(async (id, done) => {
         done(error, null);
     }
 });
-
 module.exports = passport;

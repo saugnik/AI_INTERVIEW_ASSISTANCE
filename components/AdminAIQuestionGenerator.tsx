@@ -1,13 +1,7 @@
-/**
- * Admin AI Question Generator Component
- * Allows admins to generate questions using AI for the question library
- */
 import React, { useState } from 'react';
-
 interface AdminAIQuestionGeneratorProps {
     onQuestionGenerated: () => void;
 }
-
 const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQuestionGenerated }) => {
     const [domain, setDomain] = useState('Data Structures & Algorithms');
     const [difficulty, setDifficulty] = useState('Medium');
@@ -15,16 +9,12 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-
     const API_URL = 'http://localhost:3001';
-
     const handleGenerate = async () => {
         setLoading(true);
         setError('');
         setSuccess('');
-
         try {
-            // First generate the question
             const generateResponse = await fetch(`${API_URL}/api/generate`, {
                 method: 'POST',
                 headers: {
@@ -32,14 +22,10 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                 },
                 body: JSON.stringify({ domain, difficulty, type })
             });
-
             const questionData = await generateResponse.json();
-
             if (!generateResponse.ok) {
                 throw new Error('Failed to generate question');
             }
-
-            // Then save it to the database via admin endpoint
             const saveResponse = await fetch(`${API_URL}/api/admin/create-question`, {
                 method: 'POST',
                 headers: {
@@ -58,9 +44,7 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                     hints: questionData.hints || []
                 })
             });
-
             const saveData = await saveResponse.json();
-
             if (saveData.success) {
                 setSuccess('✅ Question generated and added to library!');
                 setTimeout(() => {
@@ -76,7 +60,6 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
             setLoading(false);
         }
     };
-
     return (
         <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
             <div className="text-center mb-6">
@@ -90,9 +73,8 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                     Create a new question using AI for your question library
                 </p>
             </div>
-
             <div className="space-y-4">
-                {/* Domain */}
+                {}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Domain
@@ -110,8 +92,7 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                         <option>Operating Systems</option>
                     </select>
                 </div>
-
-                {/* Difficulty */}
+                {}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Difficulty
@@ -131,8 +112,7 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                         ))}
                     </div>
                 </div>
-
-                {/* Type */}
+                {}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Question Type
@@ -152,8 +132,7 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                         ))}
                     </div>
                 </div>
-
-                {/* Generate Button */}
+                {}
                 <button
                     onClick={handleGenerate}
                     disabled={loading}
@@ -171,8 +150,7 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                         </>
                     )}
                 </button>
-
-                {/* Success Message */}
+                {}
                 {success && (
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
                         <p className="text-green-700 dark:text-green-400 font-medium text-center">
@@ -180,8 +158,7 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
                         </p>
                     </div>
                 )}
-
-                {/* Error Message */}
+                {}
                 {error && (
                     <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
                         <p className="text-red-700 dark:text-red-400 font-medium text-center">
@@ -193,5 +170,4 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
         </div>
     );
 };
-
 export default AdminAIQuestionGenerator;

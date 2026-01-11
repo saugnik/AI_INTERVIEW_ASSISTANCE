@@ -1,7 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
 export enum AppView {
   LANDING = 'landing',
   DASHBOARD = 'dashboard',
@@ -14,19 +10,16 @@ export enum AppView {
   LEADERBOARD = 'leaderboard',
   AI_QUESTIONS = 'ai_questions',
 }
-
 export enum Difficulty {
   EASY = 'Easy',
   MEDIUM = 'Medium',
   HARD = 'Hard',
 }
-
 export enum QuestionType {
   CODING = 'Coding',
   THEORY = 'Theory',
   SYSTEM_DESIGN = 'System Design',
 }
-
 export enum Domain {
   DSA = 'Data Structures & Algorithms',
   FRONTEND = 'Frontend Development',
@@ -35,7 +28,6 @@ export enum Domain {
   DATABASE = 'Database Management',
   DEVOPS = 'DevOps',
 }
-
 export interface Question {
   id: string;
   title: string;
@@ -48,14 +40,13 @@ export interface Question {
   hints?: string[];
   constraints?: string[];
 }
-
 export interface Evaluation {
   score: number;
   feedback: string;
   strengths: string[];
   improvements: string[];
-  correctSolution?: string; // Legacy field
-  referenceSolution?: string; // New field from backend
+  correctSolution?: string;
+  referenceSolution?: string;
   complexityAnalysis?: string;
   testResults?: Array<{
     input: string;
@@ -66,20 +57,18 @@ export interface Evaluation {
   passedTests?: number;
   totalTests?: number;
 }
-
 export interface Attempt {
   id: string;
-  date: string; // ISO string
+  date: string;
   question: Question;
   userAnswer: string;
   evaluation?: Evaluation;
   timeSpentSeconds: number;
 }
-
 export interface UserStats {
   totalAttempts: number;
   averageScore: number;
   questionsSolved: number;
   streakDays: number;
-  domainPerformance: Record<string, number>; // Domain -> Avg Score
+  domainPerformance: Record<string, number>;
 }

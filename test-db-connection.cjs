@@ -1,21 +1,12 @@
-// Test database connection and check if questions table exists
 const { PrismaClient } = require('@prisma/client');
-
 const prisma = new PrismaClient();
-
 async function testDatabase() {
     try {
         console.log('🔍 Testing database connection...');
-
-        // Test connection
         await prisma.$connect();
         console.log('✅ Database connected successfully!');
-
-        // Check if questions table exists and count records
         const questionCount = await prisma.questions.count();
         console.log(`📊 Total questions in database: ${questionCount}`);
-
-        // Fetch all questions
         const questions = await prisma.questions.findMany({
             select: {
                 id: true,
@@ -27,7 +18,6 @@ async function testDatabase() {
             orderBy: { created_at: 'desc' },
             take: 10
         });
-
         console.log('\n📝 Recent questions:');
         if (questions.length === 0) {
             console.log('   No questions found in database.');
@@ -38,11 +28,8 @@ async function testDatabase() {
                 console.log(`      Created: ${q.created_at}`);
             });
         }
-
-        // Check question_assignments
         const assignmentCount = await prisma.question_assignments.count();
         console.log(`\n📋 Total assignments: ${assignmentCount}`);
-
     } catch (error) {
         console.error('❌ Database error:', error.message);
         console.error('Full error:', error);
@@ -50,5 +37,4 @@ async function testDatabase() {
         await prisma.$disconnect();
     }
 }
-
 testDatabase();

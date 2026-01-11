@@ -1,12 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
-
 async function checkAdminCodes() {
     try {
         const codes = await prisma.$queryRawUnsafe(`
             SELECT * FROM admin_codes LIMIT 10
         `);
-
         if (codes.length === 0) {
             console.log('⚠️  No admin codes found in database.');
             console.log('💡 You may need to create an admin code first.');
@@ -21,7 +19,6 @@ async function checkAdminCodes() {
                 console.log('');
             });
         }
-
     } catch (error) {
         console.error('❌ Error:', error.message);
         console.log('\n💡 The admin_codes table may not exist yet.');
@@ -30,5 +27,4 @@ async function checkAdminCodes() {
         await prisma.$disconnect();
     }
 }
-
 checkAdminCodes();

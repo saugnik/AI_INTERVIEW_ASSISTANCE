@@ -1,18 +1,12 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
 import React, { useState } from 'react';
-
 interface AdminCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
   userEmail?: string;
   userName?: string;
-  adminCode?: string; // Optional if we're in "show" mode
+  adminCode?: string;
 }
-
 export function AdminCodeModal({
   isOpen,
   onClose,
@@ -24,20 +18,15 @@ export function AdminCodeModal({
   const [inputCode, setInputCode] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   if (!isOpen) return null;
-
   const isEntryMode = !!onSuccess;
-
   const handleVerify = async () => {
     if (!inputCode) {
       setError('Please enter a code');
       return;
     }
-
     setIsSubmitting(true);
     setError('');
-
     try {
       const backendUrl = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
       const response = await fetch(`${backendUrl}/auth/verify-admin-code`, {
@@ -49,7 +38,6 @@ export function AdminCodeModal({
           code: inputCode
         })
       });
-
       const data = await response.json();
       if (data.success) {
         if (onSuccess) onSuccess();
@@ -62,13 +50,11 @@ export function AdminCodeModal({
       setIsSubmitting(false);
     }
   };
-
   const copyToClipboard = () => {
     if (displayCode) {
       navigator.clipboard.writeText(displayCode);
     }
   };
-
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div
@@ -81,7 +67,6 @@ export function AdminCodeModal({
         }}
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500"></div>
-
         <div className="p-8">
           <div className="text-center mb-6">
             <div
@@ -112,7 +97,6 @@ export function AdminCodeModal({
                 : 'Share this code with educators to grant them admin access'}
             </p>
           </div>
-
           {isEntryMode ? (
             <div className="space-y-4">
               <input
@@ -176,7 +160,6 @@ export function AdminCodeModal({
                   </button>
                 </div>
               </div>
-
               <div
                 className="p-4 rounded-xl mb-6"
                 style={{
@@ -193,7 +176,6 @@ export function AdminCodeModal({
                   </p>
                 </div>
               </div>
-
               <button
                 onClick={onClose}
                 className="w-full py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-[1.02]"

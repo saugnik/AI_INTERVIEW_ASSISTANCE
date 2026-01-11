@@ -1,8 +1,4 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   AppView,
   Attempt,
@@ -46,34 +42,24 @@ import {
   BrainIcon,
   ClockIcon
 } from './components/icons';
-
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING);
   const [darkMode, setDarkMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  // User State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('User');
   const [userEmail, setUserEmail] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'student' | 'admin'>('student');
-
-  // Admin Code Modal State
   const [showAdminCodeModal, setShowAdminCodeModal] = useState(false);
-
-  // App State
   const [isLoading, setIsLoading] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [currentEvaluation, setCurrentEvaluation] = useState<Evaluation | null>(null);
   const [history, setHistory] = useState<Attempt[]>([]);
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
-
   const AUTH_BACKEND_URL = import.meta.env.VITE_AUTH_BACKEND_URL || 'http://localhost:3002';
   const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-
-  // Fullscreen Security
   const {
     isFullscreen,
     violations,
@@ -84,7 +70,6 @@ const App: React.FC = () => {
     enabled: currentView === AppView.ATTEMPT && userRole === 'student',
     questionId: currentQuestion?.id,
     onViolation: async (violation: SecurityViolation) => {
-      // Log violation to backend
       try {
         await fetch(`${API_URL}/api/log-security-violation`, {
           method: 'POST',
@@ -102,7 +87,6 @@ const App: React.FC = () => {
       }
     }
   });
-
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const authenticated = urlParams.get('authenticated');
@@ -110,12 +94,9 @@ const App: React.FC = () => {
     const error = urlParams.get('error');
     const errorMessage = urlParams.get('message');
     const existingRole = urlParams.get('existingRole');
-
     if (error) {
       console.error('OAuth error:', error);
-
       if (error === 'role_mismatch') {
-        // Show specific role mismatch message
         alert(
           `❌ Account Role Mismatch\n\n` +
           `${decodeURIComponent(errorMessage || 'This account is registered with a different role.')}\n\n` +
@@ -125,11 +106,9 @@ const App: React.FC = () => {
       } else {
         alert(`Authentication failed: ${error}`);
       }
-
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
-
     if (authenticated === 'true' && userParam) {
       try {
         const user = JSON.parse(decodeURIComponent(userParam));
@@ -137,14 +116,10 @@ const App: React.FC = () => {
         setUserEmail(user.email || '');
         setUserId(user.id || null);
         setUserRole(user.role || 'student');
-
         localStorage.setItem('userData', JSON.stringify(user));
         localStorage.setItem('userRole', user.role || 'student');
-        // Set cookie for server-side authentication
         document.cookie = `userEmail=${encodeURIComponent(user.email || '')};path=/;max-age=2592000;SameSite=Lax`;
-
         window.history.replaceState({}, document.title, window.location.pathname);
-
         if (user.needsAdminCode && user.role === 'admin') {
           setShowAdminCodeModal(true);
           setIsAuthenticated(false);
@@ -157,7 +132,6 @@ const App: React.FC = () => {
       }
       return;
     }
-
     const savedUser = localStorage.getItem('userData');
     const savedRole = localStorage.getItem('userRole');
     if (savedUser) {
@@ -168,7 +142,6 @@ const App: React.FC = () => {
         setUserId(user.id || null);
         setUserRole((savedRole as 'student' | 'admin') || user.role || 'student');
         setIsAuthenticated(true);
-        // Set cookie for server-side authentication
         document.cookie = `userEmail=${encodeURIComponent(user.email || '')};path=/;max-age=2592000;SameSite=Lax`;
       } catch (e) {
         console.error('Failed to parse saved user data:', e);
@@ -177,7 +150,6 @@ const App: React.FC = () => {
       }
     }
   }, []);
-
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -185,7 +157,6 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
-
   useEffect(() => {
     const saved = localStorage.getItem('interview_history');
     if (saved) {
@@ -194,13 +165,10 @@ const App: React.FC = () => {
       } catch (e) { console.error('Failed to load history', e); }
     }
   }, []);
-
   const saveHistory = (newHistory: Attempt[]) => {
     setHistory(newHistory);
     localStorage.setItem('interview_history', JSON.stringify(newHistory));
   };
-
-
   const handleGenerate = async (domain: Domain, difficulty: Difficulty, type: QuestionType) => {
     setIsLoading(true);
     try {
@@ -217,18 +185,16 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   const handleSubmitAttempt = async () => {
     if (!currentQuestion) return;
     setIsLoading(true);
     try {
-      // Call backend for evaluation
       const mainBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       const response = await fetch(`${mainBackendUrl}/api/evaluate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-email': userEmail || ''  // Fixed: use userEmail instead of userId
+          'x-user-email': userEmail || ''
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -237,19 +203,14 @@ const App: React.FC = () => {
           testCases: currentQuestion.testCases || []
         })
       });
-
       if (!response.ok) {
         throw new Error('Evaluation failed');
       }
-
       const evaluation = await response.json();
       setCurrentEvaluation(evaluation);
-
-      // Store attemptId from backend response if available
       if (evaluation.attemptId) {
         setCurrentAttemptId(evaluation.attemptId);
       }
-
       const attempt: Attempt = {
         id: crypto.randomUUID(),
         date: new Date().toISOString(),
@@ -258,9 +219,7 @@ const App: React.FC = () => {
         evaluation,
         timeSpentSeconds: 0
       };
-
       saveHistory([attempt, ...history]);
-
       setCurrentView(AppView.RESULT);
     } catch (error) {
       console.error(error);
@@ -270,19 +229,14 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   const handleRetry = () => {
     setCurrentView(AppView.ATTEMPT);
     setCurrentEvaluation(null);
   };
-
   const handleNewSession = () => {
     setCurrentQuestion(null);
     setCurrentView(AppView.GENERATE);
   };
-
-  // --- Views ---
-
   const renderSidebar = () => (
     <>
       {isSidebarOpen && (
@@ -291,7 +245,6 @@ const App: React.FC = () => {
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-
       <aside className={`
         fixed top-0 left-0 z-50 h-full w-72 sidebar-edu transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -306,8 +259,6 @@ const App: React.FC = () => {
             <XIcon className="w-6 h-6" />
           </button>
         </div>
-
-
         <nav className="px-6 space-y-3 mt-8">
           {[
             { id: AppView.DASHBOARD, label: 'Learning Path', icon: DashboardIcon, roles: ['student', 'admin'] },
@@ -332,7 +283,6 @@ const App: React.FC = () => {
               </button>
             ))}
         </nav>
-
         <div className="absolute bottom-0 left-0 right-0 p-8 border-t-2 border-slate-50 bg-white/50 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
@@ -356,7 +306,6 @@ const App: React.FC = () => {
               onClick={async () => {
                 localStorage.removeItem('userData');
                 localStorage.removeItem('userRole');
-                // Clear cookie
                 document.cookie = 'userEmail=;path=/;max-age=0';
                 setIsAuthenticated(false);
                 setUserName('User');
@@ -374,7 +323,6 @@ const App: React.FC = () => {
       </aside>
     </>
   );
-
   const renderLanding = () => (
     <div className="min-h-screen bg-edu-mesh flex flex-col">
       <header className="py-8 px-8 flex justify-between items-center max-w-7xl mx-auto w-full relative z-10">
@@ -406,17 +354,14 @@ const App: React.FC = () => {
           )}
         </div>
       </header>
-
       <main className="flex-grow flex flex-col items-center justify-center text-center px-6 py-12 relative z-10 overflow-hidden">
-        {/* Abstract Background Shapes */}
+        { }
         <div className="absolute top-1/4 -left-20 w-64 h-64 bg-indigo-400/10 rounded-full blur-3xl animate-float"></div>
         <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-rose-400/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
-
         <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white/80 border-2 border-indigo-100 text-indigo-700 font-bold text-sm mb-10 shadow-sm animate-bounce-gentle">
           <AwardIcon className="w-5 h-5 text-indigo-500" />
           <span>The #1 AI Tutor for Technical Interviews</span>
         </div>
-
         <h1 className="text-6xl md:text-8xl font-bold text-slate-900 mb-10 tracking-tight max-w-5xl leading-[1.1] font-heading">
           Unlock Your Future with <span className="text-gradient-edu relative">
             Intelligent Practice
@@ -425,11 +370,9 @@ const App: React.FC = () => {
             </svg>
           </span>
         </h1>
-
         <p className="text-2xl text-slate-600 max-w-3xl mb-14 leading-relaxed font-light">
           Experience personalized learning with real-time AI mentoring. Perfect for students who want to master data structures and algorithms through guided practice.
         </p>
-
         <div className="flex flex-col sm:flex-row gap-6 mb-24">
           <button
             onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
@@ -446,8 +389,7 @@ const App: React.FC = () => {
             <UserIcon className="w-6 h-6" />
           </button>
         </div>
-
-        {/* Feature Grid */}
+        { }
         <div className="edu-grid max-w-6xl w-full text-left relative z-10 px-4">
           {[
             { icon: <BrainIcon className="w-8 h-8" />, color: "bg-indigo-500", title: "Adaptive AI Engine", desc: "Questions that evolve with your skill level, ensuring you're always challenged but never overwhelmed." },
@@ -464,7 +406,6 @@ const App: React.FC = () => {
           ))}
         </div>
       </main>
-
       <footer className="py-12 border-t border-slate-100 bg-white/50 backdrop-blur-md relative z-10">
         <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3 font-bold text-2xl text-slate-400">
@@ -481,15 +422,13 @@ const App: React.FC = () => {
       </footer>
     </div>
   );
-
   const renderDashboard = () => {
     if (userRole === 'admin') {
       return <AdminDashboard userEmail={userEmail} />;
     }
-
     return (
       <div className="space-y-12 animate-fade-in pb-12">
-        {/* Welcome Banner */}
+        { }
         <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 rounded-[32px] p-12 text-white shadow-2xl shadow-indigo-500/20">
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
           <div className="relative z-10">
@@ -515,7 +454,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-
         <StudentAssignedQuestions
           userEmail={userEmail}
           onStartQuestion={(question) => {
@@ -526,12 +464,11 @@ const App: React.FC = () => {
       </div>
     );
   };
-
   const renderAttempt = () => {
     if (!currentQuestion) return null;
     return (
       <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-8">
-        {/* Left: Question Panel */}
+        { }
         <div className="w-full md:w-5/12 edu-card-3d flex flex-col overflow-hidden shadow-2xl bg-white">
           <div className="p-8 border-b-2 border-slate-50 bg-slate-50/50">
             <div className="flex items-center justify-between gap-4 mb-6">
@@ -550,7 +487,6 @@ const App: React.FC = () => {
             </div>
             <h2 className="text-3xl font-black text-slate-900 font-heading leading-tight">{currentQuestion.title}</h2>
           </div>
-
           <div className="flex-grow p-8 overflow-y-auto custom-scrollbar">
             <div className="prose prose-slate max-w-none">
               <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -558,7 +494,6 @@ const App: React.FC = () => {
                 Problem Description
               </h3>
               <p className="whitespace-pre-wrap text-slate-600 text-lg leading-relaxed mb-10">{currentQuestion.description}</p>
-
               {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
                 <div className="mb-10">
                   <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -575,7 +510,6 @@ const App: React.FC = () => {
                   </ul>
                 </div>
               )}
-
               {currentQuestion.examples && currentQuestion.examples.length > 0 && (
                 <div className="mb-8">
                   <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -603,8 +537,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
               )}
-
-              {/* Test Cases Section */}
+              { }
               {currentQuestion.testCases && currentQuestion.testCases.length > 0 && (
                 <div className="mb-8">
                   <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -635,7 +568,6 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
-
           <div className="p-6 border-t-2 border-slate-50 bg-white">
             <details className="group bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
               <summary className="flex items-center justify-between cursor-pointer font-bold text-indigo-700 list-none">
@@ -655,8 +587,7 @@ const App: React.FC = () => {
             </details>
           </div>
         </div>
-
-        {/* Right: Editor Panel */}
+        { }
         <div className="w-full md:w-7/12 flex flex-col gap-6">
           <div className="flex-grow edu-card-3d shadow-2xl flex flex-col overflow-hidden bg-slate-900 border-slate-800 group focus-within:border-indigo-500/50 transition-colors">
             <div className="flex items-center justify-between px-6 py-4 bg-slate-800/50 border-b border-white/5">
@@ -680,14 +611,10 @@ const App: React.FC = () => {
                 onChange={(e) => setUserAnswer(e.target.value)}
                 className="w-full h-full pl-16 pr-8 py-6 bg-transparent text-indigo-50 font-mono text-[15px] resize-none focus:outline-none leading-6 caret-indigo-400"
                 spellCheck="false"
-                placeholder="/** 
- * Write your algorithm here.
- * The AI mentor will evaluate your logic and complexity.
- */"
+                placeholder=""
               />
             </div>
           </div>
-
           <div className="flex justify-between items-center bg-white p-4 rounded-[24px] border-2 border-slate-50 shadow-lg">
             <div className="flex items-center gap-4 text-slate-400 px-4">
               <div className="flex -space-x-2">
@@ -726,7 +653,6 @@ const App: React.FC = () => {
       </div>
     );
   };
-
   const renderContent = () => {
     if (isLoading && currentView === AppView.GENERATE) {
       return (
@@ -750,7 +676,6 @@ const App: React.FC = () => {
         </div>
       );
     }
-
     switch (currentView) {
       case AppView.DASHBOARD: return renderDashboard();
       case AppView.GENERATE: return (
@@ -774,7 +699,7 @@ const App: React.FC = () => {
             onNew={handleNewSession}
             userEmail={userEmail}
             attemptId={currentAttemptId || undefined}
-            userAnswer={userAnswer}  // Pass userAnswer
+            userAnswer={userAnswer}
           />
         </div>
       ) : null;
@@ -786,7 +711,6 @@ const App: React.FC = () => {
       default: return renderDashboard();
     }
   };
-
   return (
     <>
       <AdminCodeModal
@@ -806,7 +730,6 @@ const App: React.FC = () => {
           setCurrentView(AppView.DASHBOARD);
         }}
       />
-
       {!isAuthenticated && currentView === AppView.LANDING ? (
         renderLanding()
       ) : !isAuthenticated ? (
@@ -829,13 +752,11 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
-
             <div className="edu-card-3d p-10 bg-white/80 backdrop-blur-md">
               <div className="text-center mb-10">
                 <h2 className="text-3xl font-black text-slate-900 mb-2 font-heading">Start Learning</h2>
                 <p className="text-slate-500 font-medium">Welcome to the future of education</p>
               </div>
-
               <div className="space-y-4">
                 <button
                   onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
@@ -849,7 +770,6 @@ const App: React.FC = () => {
                     <p className="text-sm text-slate-500 font-medium">Practice & track progress</p>
                   </div>
                 </button>
-
                 <button
                   onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=admin`}
                   className="w-full group flex items-center gap-4 p-6 rounded-2xl bg-white border-2 border-slate-100 hover:border-purple-600 hover:bg-purple-50 transition-all shadow-sm"
@@ -863,7 +783,6 @@ const App: React.FC = () => {
                   </div>
                 </button>
               </div>
-
               <div className="mt-10 pt-8 border-t border-slate-100 text-center">
                 <p className="text-sm text-slate-400 font-bold">Secure Google Authentication</p>
               </div>
@@ -873,7 +792,6 @@ const App: React.FC = () => {
       ) : (
         <div className="min-h-screen bg-slate-50 transition-colors duration-300 flex">
           {renderSidebar()}
-
           <div className="flex-1 lg:ml-72 flex flex-col min-h-screen">
             <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b-2 border-slate-50 px-8 py-6 flex justify-between items-center lg:hidden shadow-sm">
               <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
@@ -885,15 +803,13 @@ const App: React.FC = () => {
               </div>
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 shadow-md"></div>
             </header>
-
             <main className="flex-grow p-8 lg:p-12 overflow-auto max-w-7xl mx-auto w-full">
               {renderContent()}
             </main>
           </div>
         </div>
       )}
-
-      {/* Fullscreen Security Warning Modal */}
+      { }
       <FullscreenWarning
         isOpen={showWarning}
         violationCount={violations.length}
@@ -909,5 +825,4 @@ const App: React.FC = () => {
     </>
   );
 };
-
 export default App;

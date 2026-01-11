@@ -1,6 +1,4 @@
-// Simple score test
 const http = require('http');
-
 const testData = {
     questionId: 'test',
     code: 'function solution(arr) { return arr.reverse(); }',
@@ -10,7 +8,6 @@ const testData = {
         { input: '[5]', expected: '[5]' }
     ]
 };
-
 const options = {
     hostname: 'localhost',
     port: 3001,
@@ -18,7 +15,6 @@ const options = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
 };
-
 const req = http.request(options, (res) => {
     let body = '';
     res.on('data', chunk => body += chunk);
@@ -29,6 +25,5 @@ const req = http.request(options, (res) => {
         console.log('SUCCESS:', result.score === 100 ? 'YES ✅' : 'NO ❌');
     });
 });
-
 req.write(JSON.stringify(testData));
 req.end();

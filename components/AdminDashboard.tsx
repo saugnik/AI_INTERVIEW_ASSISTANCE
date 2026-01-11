@@ -1,11 +1,6 @@
-/**
- * Admin Dashboard - Main View
- * Displays question library, student list, and assignment management
- */
 import React, { useState, useEffect } from 'react';
 import { BookIcon, UserIcon, CheckCircleIcon, ClockIcon } from './icons';
 import AdminAIQuestionGenerator from './AdminAIQuestionGenerator';
-
 interface Question {
     id: string;
     title: string;
@@ -16,7 +11,6 @@ interface Question {
         question_assignments: number;
     };
 }
-
 interface Student {
     email: string;
     name: string;
@@ -24,11 +18,9 @@ interface Student {
     completedQuestions: number;
     progress: number;
 }
-
 interface AdminDashboardProps {
     userEmail: string;
 }
-
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
     const [activeTab, setActiveTab] = useState<'questions' | 'students'>('questions');
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -40,15 +32,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignmentType, setAssignmentType] = useState<'practice' | 'test'>('practice');
     const [showAIGenerator, setShowAIGenerator] = useState(false);
-
     const API_URL = 'http://localhost:3001';
-
-    // Fetch questions
     useEffect(() => {
         fetchQuestions();
         fetchStudents();
     }, []);
-
     const fetchQuestions = async () => {
         try {
             const response = await fetch(`${API_URL}/api/admin/questions`, {
@@ -65,7 +53,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
             setLoading(false);
         }
     };
-
     const fetchStudents = async () => {
         try {
             const response = await fetch(`${API_URL}/api/admin/students`, {
@@ -80,13 +67,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
             console.error('Error fetching students:', error);
         }
     };
-
     const handleAssignQuestion = async () => {
         if (!selectedQuestion || !selectedStudent) {
             alert('Please select both a question and a student');
             return;
         }
-
         try {
             const response = await fetch(`${API_URL}/api/admin/assign-question`, {
                 method: 'POST',
@@ -102,14 +87,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                     source: 'admin'
                 })
             });
-
             const data = await response.json();
             if (data.success) {
                 alert('Question assigned successfully!');
                 setShowAssignModal(false);
                 setSelectedQuestion(null);
                 setSelectedStudent(null);
-                fetchStudents(); // Refresh student data
+                fetchStudents();
             } else {
                 alert('Failed to assign question: ' + data.error);
             }
@@ -118,12 +102,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
             alert('Failed to assign question');
         }
     };
-
     const filteredQuestions = questions.filter(q =>
         q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         q.domain.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty.toLowerCase()) {
             case 'easy': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
@@ -132,7 +114,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
             default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20';
         }
     };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -140,16 +121,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
             </div>
         );
     }
-
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {}
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
                 <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
                 <p className="text-indigo-100">Manage questions and student assignments</p>
             </div>
-
-            {/* Stats Cards */}
+            {}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
@@ -162,7 +141,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                         </div>
                     </div>
                 </div>
-
                 <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
@@ -174,7 +152,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                         </div>
                     </div>
                 </div>
-
                 <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
@@ -189,8 +166,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                     </div>
                 </div>
             </div>
-
-            {/* Tabs */}
+            {}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div className="border-b border-slate-200 dark:border-slate-700">
                     <div className="flex">
@@ -216,11 +192,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                         </button>
                     </div>
                 </div>
-
                 <div className="p-6">
                     {activeTab === 'questions' ? (
                         <div className="space-y-4">
-                            {/* AI-Powered Search */}
+                            {}
                             {!showAIGenerator && (
                                 <div className="relative">
                                     <input
@@ -237,8 +212,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                                     </div>
                                 </div>
                             )}
-
-                            {/* Generate New Question Button */}
+                            {}
                             {!showAIGenerator && (
                                 <button
                                     onClick={() => setShowAIGenerator(true)}
@@ -248,8 +222,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                                     Generate New Question with AI
                                 </button>
                             )}
-
-                            {/* AI Generator */}
+                            {}
                             {showAIGenerator && (
                                 <div className="space-y-4">
                                     <AdminAIQuestionGenerator
@@ -266,8 +239,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                                     </button>
                                 </div>
                             )}
-
-                            {/* Questions List */}
+                            {}
                             {!showAIGenerator && (
                                 <div className="space-y-3">
                                     {filteredQuestions.map((question) => (
@@ -353,8 +325,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                     )}
                 </div>
             </div>
-
-            {/* Assignment Modal */}
+            {}
             {showAssignModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800">
@@ -366,7 +337,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                                 ? 'This will be assigned as a practice question for the student.'
                                 : 'This will be assigned as a test question for evaluation.'}
                         </p>
-
                         <div className="space-y-4 mb-6">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -386,7 +356,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
                                 </select>
                             </div>
                         </div>
-
                         <div className="flex gap-3">
                             <button
                                 onClick={() => {
@@ -412,5 +381,4 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
         </div>
     );
 };
-
 export default AdminDashboard;

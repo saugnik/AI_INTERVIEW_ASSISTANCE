@@ -1,8 +1,5 @@
-// Quick evaluation test
 const http = require('http');
-
 async function quickTest() {
-    // Test evaluation with simple array reverse
     const testData = {
         questionId: 'test',
         code: 'function solution(arr) { return arr.reverse(); }',
@@ -13,7 +10,6 @@ async function quickTest() {
             { input: '[]', expected: '[]' }
         ]
     };
-
     const options = {
         hostname: 'localhost',
         port: 3001,
@@ -21,7 +17,6 @@ async function quickTest() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
     };
-
     const result = await new Promise((resolve, reject) => {
         const req = http.request(options, (res) => {
             let body = '';
@@ -32,14 +27,11 @@ async function quickTest() {
         req.write(JSON.stringify(testData));
         req.end();
     });
-
     console.log('EVALUATION RESULT:');
     console.log(JSON.stringify(result, null, 2));
-
     console.log('\nSUMMARY:');
     console.log(`Score: ${result.score}%`);
     console.log(`Tests Passed: ${result.passedTests}/${result.totalTests}`);
     console.log(`Working: ${result.totalTests > 0 && result.score >= 0 ? 'YES ✅' : 'NO ❌'}`);
 }
-
 quickTest().catch(console.error);

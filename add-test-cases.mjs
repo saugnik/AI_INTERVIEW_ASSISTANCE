@@ -1,23 +1,16 @@
-// Add test cases to existing questions
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
-
 async function addTestCases() {
     try {
         console.log('Adding test cases to questions...\n');
-
-        // Get a coding question
         const codingQuestion = await prisma.questions.findFirst({
             where: {
                 domain: 'Data Structures & Algorithms',
                 type: 'Coding'
             }
         });
-
         if (codingQuestion) {
             console.log(`Updating: ${codingQuestion.title}`);
-
-            // Add proper examples with input/output
             await prisma.questions.update({
                 where: { id: codingQuestion.id },
                 data: {
@@ -52,23 +45,17 @@ async function addTestCases() {
                     ]
                 }
             });
-
             console.log('✅ Test cases added!');
         }
-
-        // Verify
         const updated = await prisma.questions.findUnique({
             where: { id: codingQuestion.id }
         });
-
         console.log('\nUpdated question examples:');
         console.log(JSON.stringify(updated.examples, null, 2));
-
     } catch (error) {
         console.error('❌ Error:', error.message);
     } finally {
         await prisma.$disconnect();
     }
 }
-
 addTestCases();

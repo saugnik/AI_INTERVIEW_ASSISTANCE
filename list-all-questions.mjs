@@ -1,15 +1,11 @@
-// List ALL questions in database
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
-
 async function listAll() {
     try {
         const questions = await prisma.questions.findMany({
             orderBy: { created_at: 'desc' }
         });
-
         console.log(`Total questions: ${questions.length}\n`);
-
         questions.forEach((q, i) => {
             console.log(`${i + 1}. ${q.title}`);
             console.log(`   Type: ${q.type}, Domain: ${q.domain}`);
@@ -19,12 +15,10 @@ async function listAll() {
             }
             console.log('');
         });
-
     } catch (error) {
         console.error('Error:', error.message);
     } finally {
         await prisma.$disconnect();
     }
 }
-
 listAll();

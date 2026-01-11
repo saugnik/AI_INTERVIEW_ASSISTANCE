@@ -1,6 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { Difficulty, Domain, Evaluation, Question, QuestionType } from '../types';
-
 function getApiKey(): string {
   try {
     const fromLocalStorage = typeof localStorage !== 'undefined' ? localStorage.getItem('GEMINI_API_KEY') : null;
@@ -11,7 +10,6 @@ function getApiKey(): string {
     return (typeof process !== 'undefined' && (process.env?.GEMINI_API_KEY || process.env?.API_KEY)) || '';
   }
 }
-
 function getAI() {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -21,17 +19,15 @@ function getAI() {
   }
   return new GoogleGenAI({ apiKey });
 }
-
 export const generateQuestion = async (
   domain: Domain,
   difficulty: Difficulty,
   type: QuestionType
 ): Promise<Question> => {
   const contentPrompt = `Generate a single unique ${difficulty} interview question for ${domain} of type ${type}. Ensure the question is challenging and realistic for top-tier tech interviews.`;
-
   if (typeof window !== 'undefined') {
     const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
-    const url = devBase ? `${devBase}/api/generate` : '/api/generate';
+    const url = `${devBase}/api/generate`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,13 +45,12 @@ export const generateQuestion = async (
       type,
       title: data.title,
       description: data.description,
-      codeStarter: data.codeStarter || (type === QuestionType.CODING ? '// Write your solution here\n' : ''),
+      codeStarter: data.codeStarter || (type === QuestionType.CODING ? '' : ''),
       constraints: data.constraints || [],
       hints: data.hints || [],
       testCases: data.testCases || []
     };
   }
-
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
@@ -86,9 +81,7 @@ export const generateQuestion = async (
         }
       }
     });
-
     const data = JSON.parse(response.text || '{}');
-
     return {
       id: crypto.randomUUID(),
       domain,
@@ -96,7 +89,7 @@ export const generateQuestion = async (
       type,
       title: data.title,
       description: data.description,
-      codeStarter: data.codeStarter || (type === QuestionType.CODING ? '// Write your solution here\n' : ''),
+      codeStarter: data.codeStarter || (type === QuestionType.CODING ? '' : ''),
       constraints: data.constraints || [],
       hints: data.hints || [],
       testCases: data.testCases || []
@@ -109,25 +102,20 @@ export const generateQuestion = async (
     throw new Error(`Gemini generate failed: ${inner}. ${hint}`);
   }
 };
-
 export const evaluateAttempt = async (
   question: Question,
   userAnswer: string
 ): Promise<Evaluation> => {
   const contentPrompt = `Evaluate the following answer for the interview question: "${question.title}".
-
 Question Description:
 ${question.description}
-
 User Answer:
 ${userAnswer}
-
 Provide a score out of 100, detailed feedback, list strengths and improvements, and provide the optimal correct solution (code or text).
 `;
-
   if (typeof window !== 'undefined') {
     const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
-    const url = devBase ? `${devBase}/api/evaluate` : '/api/evaluate';
+    const url = `${devBase}/api/evaluate`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -147,8 +135,6 @@ Provide a score out of 100, detailed feedback, list strengths and improvements, 
       complexityAnalysis: data.complexityAnalysis
     };
   }
-
-  // Server-side: use SDK
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
@@ -170,9 +156,7 @@ Provide a score out of 100, detailed feedback, list strengths and improvements, 
         }
       }
     });
-
     const data = JSON.parse(response.text || '{}');
-
     return {
       score: data.score,
       feedback: data.feedback,

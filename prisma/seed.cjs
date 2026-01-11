@@ -1,12 +1,9 @@
-// prisma/seed.cjs - Corrected version
+﻿// prisma/seed.cjs - Corrected version
 const { PrismaClient } = require('@prisma/client');
 const { randomUUID } = require('crypto');
-
 const prisma = new PrismaClient();
-
 async function main() {
     console.log('🌱 Starting database seed...');
-
     // Clear existing data
     console.log('🗑️  Cleaning existing data...');
     await prisma.attempt_test_results.deleteMany({});
@@ -14,8 +11,6 @@ async function main() {
     await prisma.test_cases.deleteMany({});
     await prisma.questions.deleteMany({});
     await prisma.users.deleteMany({});
-
-
     // Create demo users
     console.log('👤 Creating users...');
     const demoUser = await prisma.users.create({
@@ -26,12 +21,9 @@ async function main() {
             metadata: { theme: 'dark', notifications: true }
         },
     });
-
     console.log('✅ Created user:', demoUser.email);
-
     // Create questions
     console.log('📝 Creating questions...');
-
     const twoSumId = randomUUID();
     await prisma.questions.create({
         data: {
@@ -51,7 +43,6 @@ async function main() {
             starter_code: 'function twoSum(nums, target) {\n    // Write your solution here\n}'
         }
     });
-
     // Create test cases for Two Sum
     await prisma.test_cases.createMany({
         data: [
@@ -71,9 +62,7 @@ async function main() {
             }
         ]
     });
-
     console.log('✅ Created question: Two Sum');
-
     const palindromeId = randomUUID();
     await prisma.questions.create({
         data: {
@@ -93,7 +82,6 @@ async function main() {
             starter_code: 'function isPalindrome(s) {\n    // Write your solution here\n}'
         }
     });
-
     await prisma.test_cases.createMany({
         data: [
             {
@@ -112,9 +100,7 @@ async function main() {
             }
         ]
     });
-
     console.log('✅ Created question: Valid Palindrome');
-
     // Create sample attempt
     console.log('🎯 Creating sample attempt...');
     await prisma.attempts.create({
@@ -131,7 +117,6 @@ async function main() {
             }
         }
     });
-
     console.log('🎉 Seed completed successfully!');
     console.log(`📊 Summary:`);
     console.log(`   - Users: ${await prisma.users.count()}`);
@@ -139,7 +124,6 @@ async function main() {
     console.log(`   - Test Cases: ${await prisma.test_cases.count()}`);
     console.log(`   - Attempts: ${await prisma.attempts.count()}`);
 }
-
 main()
     .catch((e) => {
         console.error('❌ Seed failed:', e);

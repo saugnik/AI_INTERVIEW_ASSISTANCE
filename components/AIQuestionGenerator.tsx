@@ -1,14 +1,8 @@
-/**
- * AI Question Generator Component
- * Allows students to generate practice questions using AI
- */
 import React, { useState } from 'react';
-
 interface AIQuestionGeneratorProps {
     userEmail: string;
     onQuestionGenerated: () => void;
 }
-
 const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, onQuestionGenerated }) => {
     const [domain, setDomain] = useState('Data Structures & Algorithms');
     const [difficulty, setDifficulty] = useState('Medium');
@@ -16,14 +10,11 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-
     const API_URL = 'http://localhost:3001';
-
     const handleGenerate = async () => {
         setLoading(true);
         setError('');
         setSuccess('');
-
         try {
             const response = await fetch(`${API_URL}/api/student/generate-ai-question`, {
                 method: 'POST',
@@ -34,9 +25,7 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                 },
                 body: JSON.stringify({ domain, difficulty, type })
             });
-
             const data = await response.json();
-
             if (data.success) {
                 setSuccess('✅ Question generated and added to your list below! Scroll down to see it.');
                 setTimeout(() => {
@@ -52,7 +41,6 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
             setLoading(false);
         }
     };
-
     return (
         <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
             <div className="text-center mb-6">
@@ -66,9 +54,8 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                     Create a personalized interview question using AI
                 </p>
             </div>
-
             <div className="space-y-4">
-                {/* Domain */}
+                {}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Domain
@@ -86,8 +73,7 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                         <option>Operating Systems</option>
                     </select>
                 </div>
-
-                {/* Difficulty */}
+                {}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Difficulty
@@ -107,8 +93,7 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                         ))}
                     </div>
                 </div>
-
-                {/* Type */}
+                {}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Question Type
@@ -128,8 +113,7 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                         ))}
                     </div>
                 </div>
-
-                {/* Generate Button */}
+                {}
                 <button
                     onClick={handleGenerate}
                     disabled={loading}
@@ -147,8 +131,7 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                         </>
                     )}
                 </button>
-
-                {/* Success Message */}
+                {}
                 {success && (
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
                         <p className="text-green-700 dark:text-green-400 font-medium text-center">
@@ -156,8 +139,7 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
                         </p>
                     </div>
                 )}
-
-                {/* Error Message */}
+                {}
                 {error && (
                     <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
                         <p className="text-red-700 dark:text-red-400 font-medium text-center">
@@ -169,5 +151,4 @@ const AIQuestionGenerator: React.FC<AIQuestionGeneratorProps> = ({ userEmail, on
         </div>
     );
 };
-
 export default AIQuestionGenerator;

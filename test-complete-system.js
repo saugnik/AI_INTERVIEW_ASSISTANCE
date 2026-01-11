@@ -1,16 +1,11 @@
-// Comprehensive Test for All New Features
 console.log('🧪 Testing Complete System Implementation\n');
 console.log('='.repeat(60));
 console.log('');
-
 const API_BASE = 'http://localhost:3001';
 const TEST_STUDENT_EMAIL = 'student@test.com';
-
 let passedTests = 0;
 let totalTests = 0;
-
 async function runTests() {
-    // Test 1: Generate Question (Auto-Save)
     console.log('\n📝 Test 1: Generate Question with Auto-Save');
     console.log('-'.repeat(60));
     totalTests++;
@@ -24,10 +19,8 @@ async function runTests() {
                 type: 'CODING'
             })
         });
-
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-
         if (data.id && data.source === 'ai') {
             console.log('✅ PASSED - Question generated and saved');
             console.log(`   ID: ${data.id}`);
@@ -40,8 +33,6 @@ async function runTests() {
     } catch (error) {
         console.log(`❌ FAILED - ${error.message}`);
     }
-
-    // Test 2: Get Leaderboard
     console.log('\n🏆 Test 2: Get Leaderboard');
     console.log('-'.repeat(60));
     totalTests++;
@@ -49,7 +40,6 @@ async function runTests() {
         const response = await fetch(`${API_BASE}/api/rankings?limit=5`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-
         if (data.leaderboard && Array.isArray(data.leaderboard)) {
             console.log('✅ PASSED - Leaderboard retrieved');
             console.log(`   Students: ${data.leaderboard.length}`);
@@ -63,8 +53,6 @@ async function runTests() {
     } catch (error) {
         console.log(`❌ FAILED - ${error.message}`);
     }
-
-    // Test 3: Get Student Rank
     console.log('\n📊 Test 3: Get Student Rank');
     console.log('-'.repeat(60));
     totalTests++;
@@ -72,7 +60,6 @@ async function runTests() {
         const response = await fetch(`${API_BASE}/api/rankings/${encodeURIComponent(TEST_STUDENT_EMAIL)}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-
         if (data.rank !== undefined) {
             console.log('✅ PASSED - Student rank retrieved');
             console.log(`   Rank: ${data.rank}/${data.totalStudents}`);
@@ -85,8 +72,6 @@ async function runTests() {
     } catch (error) {
         console.log(`❌ FAILED - ${error.message}`);
     }
-
-    // Test 4: Get Student Progress
     console.log('\n📈 Test 4: Get Student Progress Dashboard');
     console.log('-'.repeat(60));
     totalTests++;
@@ -94,7 +79,6 @@ async function runTests() {
         const response = await fetch(`${API_BASE}/api/student/progress/${encodeURIComponent(TEST_STUDENT_EMAIL)}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-
         if (data.level && data.xp !== undefined) {
             console.log('✅ PASSED - Progress dashboard retrieved');
             console.log(`   Level: ${data.level}`);
@@ -108,8 +92,6 @@ async function runTests() {
     } catch (error) {
         console.log(`❌ FAILED - ${error.message}`);
     }
-
-    // Test 5: Get AI-Generated Questions (Admin)
     console.log('\n🤖 Test 5: Get AI-Generated Questions (Admin)');
     console.log('-'.repeat(60));
     totalTests++;
@@ -122,7 +104,6 @@ async function runTests() {
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-
         if (data.suggestions && Array.isArray(data.suggestions)) {
             console.log('✅ PASSED - AI-generated questions retrieved');
             console.log(`   Total: ${data.suggestions.length}`);
@@ -138,15 +119,12 @@ async function runTests() {
     } catch (error) {
         console.log(`❌ FAILED - ${error.message}`);
     }
-
-    // Test 6: Database Check
     console.log('\n💾 Test 6: Database Tables Check');
     console.log('-'.repeat(60));
     totalTests++;
     try {
         const { PrismaClient } = await import('@prisma/client');
         const prisma = new PrismaClient();
-
         const tables = {
             auth_users: await prisma.auth_users.count(),
             student_rankings: await prisma.student_rankings.count(),
@@ -156,9 +134,7 @@ async function runTests() {
             question_hints: await prisma.question_hints.count(),
             solved_questions: await prisma.solved_questions.count()
         };
-
         await prisma.$disconnect();
-
         console.log('✅ PASSED - All tables accessible');
         console.log(`   Users: ${tables.auth_users}`);
         console.log(`   Rankings: ${tables.student_rankings}`);
@@ -171,11 +147,8 @@ async function runTests() {
     } catch (error) {
         console.log(`❌ FAILED - ${error.message}`);
     }
-
-    // Summary
     console.log('\n' + '='.repeat(60));
     console.log(`\n📊 Test Results: ${passedTests}/${totalTests} passed\n`);
-
     if (passedTests === totalTests) {
         console.log('✅ ALL TESTS PASSED! System is fully operational.\n');
         console.log('🎉 Features Implemented:');
@@ -191,10 +164,8 @@ async function runTests() {
     } else {
         console.log(`⚠️  ${totalTests - passedTests} test(s) failed. Check errors above.\n`);
     }
-
     process.exit(passedTests === totalTests ? 0 : 1);
 }
-
 runTests().catch(error => {
     console.error('❌ Fatal error:', error);
     process.exit(1);
