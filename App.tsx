@@ -237,6 +237,41 @@ const App: React.FC = () => {
     setCurrentQuestion(null);
     setCurrentView(AppView.GENERATE);
   };
+  // Demo login (no Google/auth server). Persists the demo user so attempts &
+  // rankings — which foreign-key to auth_users — work end to end.
+  const handleDemoLogin = async (role: 'student' | 'admin' = 'student') => {
+    const demoUser = role === 'admin'
+      ? { email: 'demo.educator@example.com', name: 'Demo Educator', role: 'admin', id: 'demo-admin' }
+      : { email: 'demo.student@example.com', name: 'Demo Student', role: 'student', id: 'demo-student' };
+    const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    try {
+      await fetch(`${apiUrl}/api/auth/save-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: demoUser.email, name: demoUser.name, role: demoUser.role })
+      });
+    } catch (e) {
+      console.warn('Demo save-user failed (continuing anyway):', e);
+    }
+    setUserName(demoUser.name);
+    setUserEmail(demoUser.email);
+    setUserId(demoUser.id);
+    setUserRole(demoUser.role as 'student' | 'admin');
+    localStorage.setItem('userData', JSON.stringify(demoUser));
+    localStorage.setItem('userRole', demoUser.role);
+    document.cookie = `userEmail=${encodeURIComponent(demoUser.email)};path=/;max-age=2592000;SameSite=Lax`;
+    setIsAuthenticated(true);
+    setCurrentView(AppView.DASHBOARD);
+  };
+  // Use real Google OAuth if an auth backend is configured; otherwise demo login.
+  const handleAuthClick = (role: 'student' | 'admin' = 'student') => {
+    const authBase = import.meta.env.VITE_AUTH_BACKEND_URL;
+    if (authBase) {
+      window.location.href = `${authBase}/auth/google?role=${role}`;
+    } else {
+      handleDemoLogin(role);
+    }
+  };
   const renderSidebar = () => (
     <>
       {isSidebarOpen && (
@@ -346,7 +381,7 @@ const App: React.FC = () => {
             </button>
           ) : (
             <button
-              onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google`}
+              onClick={() => handleAuthClick('student')}
               className="btn-edu btn-edu-primary shadow-xl"
             >
               Start Free Today
@@ -375,14 +410,14 @@ const App: React.FC = () => {
         </p>
         <div className="flex flex-col sm:flex-row gap-6 mb-24">
           <button
-            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
+            onClick={() => handleAuthClick('student')}
             className="px-10 py-5 bg-indigo-600 text-white text-xl font-black rounded-3xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-4 shadow-2xl shadow-indigo-500/40 transform hover:scale-105 active:scale-95"
           >
             Join as a Student
             <PlayIcon className="w-6 h-6" />
           </button>
           <button
-            onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=admin`}
+            onClick={() => handleAuthClick('admin')}
             className="px-10 py-5 bg-white text-slate-900 text-xl font-black rounded-3xl border-2 border-slate-200 hover:border-indigo-600 transition-all flex items-center justify-center gap-4 shadow-xl transform hover:scale-105 active:scale-95"
           >
             I'm an Educator
@@ -759,7 +794,7 @@ const App: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <button
-                  onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=student`}
+                  onClick={() => handleAuthClick('student')}
                   className="w-full group flex items-center gap-4 p-6 rounded-2xl bg-white border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 transition-all shadow-sm"
                 >
                   <div className="w-14 h-14 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -771,7 +806,7 @@ const App: React.FC = () => {
                   </div>
                 </button>
                 <button
-                  onClick={() => window.location.href = `${AUTH_BACKEND_URL}/auth/google?role=admin`}
+                  onClick={() => handleAuthClick('admin')}
                   className="w-full group flex items-center gap-4 p-6 rounded-2xl bg-white border-2 border-slate-100 hover:border-purple-600 hover:bg-purple-50 transition-all shadow-sm"
                 >
                   <div className="w-14 h-14 rounded-xl bg-purple-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">

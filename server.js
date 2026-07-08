@@ -47,9 +47,20 @@ const questions = [
     ],
   },
 ];
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) return true;
+  try {
+    // Allow any Vercel deployment (production + preview URLs).
+    return /\.vercel\.app$/.test(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
 function setCors(req, res) {
   const origin = req.headers && req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
+  if (isAllowedOrigin(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Vary', 'Origin');
