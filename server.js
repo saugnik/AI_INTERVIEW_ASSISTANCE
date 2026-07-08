@@ -8,7 +8,10 @@ import { generateHintsForQuestion, saveHintsToDatabase } from './services/hintSe
 import { updateStudentRanking, getLeaderboard, getStudentRank } from './services/rankingService.js';
 import { awardXP, getStudentLevel } from './services/levelingService.js';
 import { requestVideoExplanation, getVideoExplanation } from './services/videoExplanationService.js';
+// Load base .env first, then .env.local as an override (so either file works).
+// Note: Prisma CLI only reads `.env`, so DATABASE_URL should live there for migrations.
 dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 const PORT = process.env.PORT || 3001;
 const ALLOWED_ORIGINS = new Set([
   'https://ai-interview-app.vercel.app',
@@ -87,7 +90,7 @@ export const server = http.createServer(async (req, res) => {
           prompt: true,
           examples: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         take: 100,
       });
       const payload = dbQuestions && dbQuestions.length ? dbQuestions : questions.map(q => ({
@@ -2118,7 +2121,34 @@ Return ONLY valid JSON:
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Not found' }));
 });
+// Warn (don't crash) about missing configuration so failures are obvious at boot.
+function checkEnv() {
+  const required = {
+    DATABASE_URL: 'Postgres connection (all DB endpoints will 500 without it)',
+    GROQ_API_KEY: 'Groq key — used as fallback for generation & evaluation',
+  };
+  const optional = {
+    GROQ_GENERATION_KEY: 'question generation (falls back to GROQ_API_KEY)',
+    GROQ_EVALUATION_KEY: 'answer evaluation (falls back to GROQ_API_KEY)',
+    GEMINI_API_KEY: 'legacy Gemini usage',
+    HEYGEN_API_KEY: 'HeyGen avatar videos',
+    DID_API_KEY: 'D-ID avatar videos',
+    ADMIN_EMAILS: 'admin access control',
+  };
+  const missReq = Object.keys(required).filter((k) => !process.env[k]);
+  const missOpt = Object.keys(optional).filter((k) => !process.env[k]);
+  if (missReq.length) {
+    console.warn('⚠️  Missing REQUIRED env vars:');
+    missReq.forEach((k) => console.warn(`   - ${k}: ${required[k]}`));
+  }
+  if (missOpt.length) {
+    console.warn('ℹ️  Optional env vars not set:', missOpt.join(', '));
+  }
+  if (!missReq.length) console.log('✅ Required env vars present.');
+}
+
 if (process.env.START_SERVER !== 'false') {
+  checkEnv();
   server.listen(PORT, () => {
     console.log(`[api] listening on http://localhost:${PORT}`);
   });

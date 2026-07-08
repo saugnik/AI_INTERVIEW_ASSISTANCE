@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start:api": "node server-express.cjs",
+    "start:api": "node server.js",
     "start:auth": "cd AUTH_SYSTEM/backend && npm start",
     "test:api": "node scripts/test-api.mjs",
     "prisma:seed": "node prisma/seed.cjs"

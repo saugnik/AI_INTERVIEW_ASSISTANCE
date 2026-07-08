@@ -3,10 +3,25 @@ services:
     name: ai-interview-backend
     runtime: node
     plan: free
-    buildCommand: npm install
+    # npx prisma generate is required — the Prisma client isn't committed and
+    # there's no postinstall hook, so the server would crash without it.
+    buildCommand: npm install && npx prisma generate
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3001
+      # PORT is injected by Render automatically; server.js reads process.env.PORT.
+      # Do NOT hardcode it, or Render may fail with "no open ports detected".
+      # Secrets below are set in the Render dashboard, NOT committed here:
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_GENERATION_KEY
+        sync: false
+      - key: GROQ_EVALUATION_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
