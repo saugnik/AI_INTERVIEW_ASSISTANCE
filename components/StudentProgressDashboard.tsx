@@ -35,7 +35,8 @@ export default function StudentProgressDashboard({ userEmail }: { userEmail: str
     }, [userEmail]);
     const fetchProgress = async () => {
         try {
-            const response = await fetch(`http://localhost:3001/api/student/my-progress?email=${encodeURIComponent(userEmail)}`, {
+            const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            const response = await fetch(`${API_URL}/api/student/my-progress?email=${encodeURIComponent(userEmail)}`, {
                 headers: { 'x-user-email': userEmail }
             });
             const data = await response.json();

@@ -32,7 +32,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ userEmail }) => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignmentType, setAssignmentType] = useState<'practice' | 'test'>('practice');
     const [showAIGenerator, setShowAIGenerator] = useState(false);
-    const API_URL = 'http://localhost:3001';
+    const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
     useEffect(() => {
         fetchQuestions();
         fetchStudents();

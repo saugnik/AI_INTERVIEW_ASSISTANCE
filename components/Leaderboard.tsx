@@ -18,7 +18,8 @@ export default function Leaderboard() {
     }, [limit]);
     const fetchLeaderboard = async () => {
         try {
-            const response = await fetch(`http://localhost:3001/api/rankings?limit=${limit}`);
+            const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            const response = await fetch(`${API_URL}/api/rankings?limit=${limit}`);
             const data = await response.json();
             setLeaderboard(data.leaderboard);
         } catch (error) {

@@ -9,7 +9,7 @@ const AdminAIQuestionGenerator: React.FC<AdminAIQuestionGeneratorProps> = ({ onQ
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const API_URL = 'http://localhost:3001';
+    const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
     const handleGenerate = async () => {
         setLoading(true);
         setError('');

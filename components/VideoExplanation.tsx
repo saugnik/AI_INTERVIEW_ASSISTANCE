@@ -62,7 +62,7 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail, ques
     setLoading(true);
     setError(null);
     try {
-      const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+      const devBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
       const url = devBase ? `${devBase}/api/student/request-video-explanation` : `/api/student/request-video-explanation`;
       const response = await fetch(url, {
         method: 'POST',
@@ -178,7 +178,7 @@ export function VideoExplanation({ attemptId, questionId, score, userEmail, ques
   const pollVideoStatus = async () => {
     if (!videoData) return;
     try {
-      const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+      const devBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
       const url = devBase ? `${devBase}/api/student/video-explanation/${attemptId}` : `/api/student/video-explanation/${attemptId}`;
       const response = await fetch(url, {
         headers: {

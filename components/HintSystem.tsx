@@ -17,7 +17,8 @@ export default function HintSystem({ questionId, onHintUsed }: HintSystemProps) 
         if (hints.length > 0) return;
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:3001/api/hints/${questionId}`);
+            const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            const response = await fetch(`${API_URL}/api/hints/${questionId}`);
             const data = await response.json();
             setHints(data.hints);
         } catch (error) {

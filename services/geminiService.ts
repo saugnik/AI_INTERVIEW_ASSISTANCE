@@ -26,7 +26,7 @@ export const generateQuestion = async (
 ): Promise<Question> => {
   const contentPrompt = `Generate a single unique ${difficulty} interview question for ${domain} of type ${type}. Ensure the question is challenging and realistic for top-tier tech interviews.`;
   if (typeof window !== 'undefined') {
-    const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+    const devBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
     const url = `${devBase}/api/generate`;
     const res = await fetch(url, {
       method: 'POST',
@@ -114,7 +114,7 @@ ${userAnswer}
 Provide a score out of 100, detailed feedback, list strengths and improvements, and provide the optimal correct solution (code or text).
 `;
   if (typeof window !== 'undefined') {
-    const devBase = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+    const devBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
     const url = `${devBase}/api/evaluate`;
     const res = await fetch(url, {
       method: 'POST',
